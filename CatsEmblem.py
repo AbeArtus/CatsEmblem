@@ -1,28 +1,27 @@
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
-# import math
-import math
 import thumbyGrayscale as thumby
 
-# Tiles
+# --- TILE DATA ---
 forestTile = (bytearray([255, 255, 255, 255, 127, 255, 255, 255]), bytearray([0, 0, 96, 124, 255, 124, 96, 0]))
-mountainTile =(bytearray([255, 255, 255, 255, 255, 252, 227, 31]), bytearray([192, 240, 252, 255, 255, 255, 252, 224]))
+mountainTile = (bytearray([255, 255, 255, 255, 255, 252, 227, 31]), bytearray([192, 240, 252, 255, 255, 255, 252, 224]))
 grassTile = (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([0, 64, 0, 64, 4, 0, 4, 0]))
 houseTile = (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([8, 252, 142, 239, 239, 142, 252, 8]))
 
-# Define tile types for simplicity
+# --- TILE TYPES ---
 TILE_GRASS = 0
 TILE_FOREST = 1
 TILE_MOUNTAIN = 2
 TILE_HOUSE = 3
 EMPTY = 4
 
-# Define screen dimensions in terms of tiles
+# --- CONSTANTS ---
 SCREEN_TILES_X = 9
 SCREEN_TILES_Y = 5
+MOVE_DELAY = 8
 
-# Initialize map with grass in center, forest around it, and mountains on the edges
+# --- LEVEL DATA ---
 level1 = [
     [TILE_MOUNTAIN] * 10,
     [TILE_MOUNTAIN] + [TILE_FOREST] * 8 + [TILE_MOUNTAIN],
@@ -36,6 +35,7 @@ level1 = [
     [TILE_MOUNTAIN] * 10,
 ]
 
+# --- CLASSES ---
 class Stats:
     def __init__(self, attack=0, defense=0, hp=0, speed=0, luck=0, range=1):
         self.attack = attack
@@ -54,7 +54,7 @@ class Position:
         return isinstance(other, Position) and self.x == other.x and self.y == other.y
 
 class Cat:
-    def __init__(self, sprite, position: Position, name: str, selected=False, exhausted=False, stats=None):
+    def __init__(self, sprite, position, name, selected=False, exhausted=False, stats=None):
         self.sprite = sprite
         self.position = position
         self.selected = selected
@@ -62,7 +62,7 @@ class Cat:
         self.name = name
         self.stats = stats or Stats()
 
-    def set_position(self, position: Position):
+    def set_position(self, position):
         self.position = position
     
     def set_exhausted(self, exhausted):
@@ -71,18 +71,12 @@ class Cat:
     def set_selected(self, selected):
         self.selected = selected
 
-    def set_sprite_position(self, position: Position):
+    def set_sprite_position(self, position):
         self.sprite.x = position.x
         self.sprite.y = position.y
 
+# --- GAME STATE ---
 selectedCatName = "null"
-
-def get_selected_cat():
-    for c in party:
-        if c.name == selectedCatName:
-            return c
-    return None
-
 frame = 0
 delay = 0
 gameState = 'title'
@@ -90,58 +84,29 @@ needsUpdate = False
 tempPos = Position()
 lastPos = Position()
 selectorPosition = Position()
-
-# Viewport position for scrolling
 viewport_x = 0
 viewport_y = 0
+option = 0
+currentLevel = level1
 
-# Create sprites
+# --- SPRITES ---
 selector_sprite = thumby.Sprite(8, 8, (bytearray([126, 255, 255, 255, 255, 255, 255, 126]), bytearray([195, 129, 0, 0, 0, 0, 129, 195])), 32, 16, key=1)
 cat_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]), bytearray([0, 0, 0, 0, 0, 0, 0, 0])), 32, 16, key=1)
-cat = Cat(cat_sprite, Position(2, 4), 'cat')
-tac = Cat(cat_sprite, Position(2, 5), 'tac')
-party = [cat, tac]
-
 enemy_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]), bytearray([255, 48, 240, 240, 63, 250, 14, 11])), 32, 16, key=1)
-enemy = Cat(enemy_sprite, Position(6, 4), 'enemy')
+
+# --- UNITS ---
+cat = Cat(cat_sprite, Position(2, 4), 'cat', False, False, Stats(attack=2, defense=3, hp=10, speed=4, luck=4, range=1))
+tac = Cat(cat_sprite, Position(2, 5), 'tac', False, False, Stats(attack=3, defense=2, hp=8, speed=6, luck=6, range=1))
+enemy = Cat(enemy_sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, hp=12, speed=3, luck=1, range=1))
+party = [cat, tac]
 enemies = [enemy]
 
-currentLevel = level1
-option = 0
-
-def render_map(level):
-    thumby.display.fill(thumby.display.WHITE)
-    for y in range(SCREEN_TILES_Y):
-        for x in range(SCREEN_TILES_X):
-            map_x = viewport_x + x
-            map_y = viewport_y + y
-            if 0 <= map_x < len(level[0]) and 0 <= map_y < len(level):
-                tile_type = level[map_y][map_x]
-                tile_pos = Position(x * 8, y * 8)
-                if tile_type == TILE_GRASS:
-                    sprite = thumby.Sprite(8, 8, grassTile, tile_pos.x, tile_pos.y)
-                elif tile_type == TILE_FOREST:
-                    sprite = thumby.Sprite(8, 8, forestTile, tile_pos.x, tile_pos.y)
-                elif tile_type == TILE_MOUNTAIN:
-                    sprite = thumby.Sprite(8, 8, mountainTile, tile_pos.x, tile_pos.y)
-                elif tile_type == TILE_HOUSE:
-                    sprite = thumby.Sprite(8, 8, houseTile, tile_pos.x, tile_pos.y)
-                else:
-                    continue
-                thumby.display.drawSprite(sprite)
-
-    for unit in party + enemies:
-        if viewport_x <= unit.position.x < viewport_x + SCREEN_TILES_X and viewport_y <= unit.position.y < viewport_y + SCREEN_TILES_Y:
-            unit_screen_x = (unit.position.x - viewport_x) * 8
-            unit_screen_y = (unit.position.y - viewport_y) * 8
-            unit.set_sprite_position(Position(unit_screen_x, unit_screen_y))
-            thumby.display.drawSprite(unit.sprite)
-
-    selector_sprite.x = (selectorPosition.x - viewport_x) * 8
-    selector_sprite.y = (selectorPosition.y - viewport_y) * 8
-    thumby.display.drawSprite(selector_sprite)
-
-thumby.display.setFPS(8)
+# --- FUNCTIONS ---
+def get_selected_cat():
+    for c in party:
+        if c.name == selectedCatName:
+            return c
+    return None
 
 def can_attack():
     cat = get_selected_cat()
@@ -167,6 +132,7 @@ def update_selector_position(dx, dy, level):
     selectorPosition.x = new_x
     selectorPosition.y = new_y
 
+    # Update viewport
     if new_x - viewport_x < 1 and viewport_x > 0:
         viewport_x -= 1
     elif new_x - viewport_x > SCREEN_TILES_X - 2 and viewport_x < len(level[0]) - SCREEN_TILES_X:
@@ -176,47 +142,92 @@ def update_selector_position(dx, dy, level):
     elif new_y - viewport_y > SCREEN_TILES_Y - 2 and viewport_y < len(level) - SCREEN_TILES_Y:
         viewport_y += 1
 
-def map_loop():
-    global gameState, selectedCatName, tempPos, lastPos, needsUpdate, delay
-
-    directionPressed = False
-    if thumby.buttonL.justPressed(): 
+def handle_movement():
+    global delay, needsUpdate
+    
+    # Handle immediate button presses
+    if thumby.buttonL.justPressed():
         update_selector_position(-1, 0, currentLevel)
         delay = 0
-        directionPressed = True
         needsUpdate = True
+        return True
     elif thumby.buttonR.justPressed():
         update_selector_position(1, 0, currentLevel)
         delay = 0
-        directionPressed = True
         needsUpdate = True
+        return True
     elif thumby.buttonU.justPressed():
         update_selector_position(0, -1, currentLevel)
         delay = 0
-        directionPressed = True
         needsUpdate = True
+        return True
     elif thumby.buttonD.justPressed():
         update_selector_position(0, 1, currentLevel)
         delay = 0
-        directionPressed = True
         needsUpdate = True
-    elif not directionPressed:
+        return True
+    
+    # Handle held button presses
+    delay += 1
+    if delay > MOVE_DELAY:
         if thumby.buttonL.pressed():
-            delay += 1
-            if delay > 8: update_selector_position(-1, 0, currentLevel)
+            update_selector_position(-1, 0, currentLevel)
             needsUpdate = True
-        if thumby.buttonR.pressed():
-            delay += 1
-            if delay > 8: update_selector_position(1, 0, currentLevel)
+        elif thumby.buttonR.pressed():
+            update_selector_position(1, 0, currentLevel)
             needsUpdate = True
-        if thumby.buttonU.pressed():
-            delay += 1
-            if delay > 8: update_selector_position(0, -1, currentLevel)
+        elif thumby.buttonU.pressed():
+            update_selector_position(0, -1, currentLevel)
             needsUpdate = True
-        if thumby.buttonD.pressed():
-            delay += 1
-            if delay > 8: update_selector_position(0, 1, currentLevel)
+        elif thumby.buttonD.pressed():
+            update_selector_position(0, 1, currentLevel)
             needsUpdate = True
+    
+    return False
+
+def render_map(level):
+    thumby.display.fill(thumby.display.WHITE)
+    
+    # Render tiles
+    for y in range(SCREEN_TILES_Y):
+        for x in range(SCREEN_TILES_X):
+            map_x = viewport_x + x
+            map_y = viewport_y + y
+            if 0 <= map_x < len(level[0]) and 0 <= map_y < len(level):
+                tile_type = level[map_y][map_x]
+                if tile_type == TILE_GRASS:
+                    sprite = thumby.Sprite(8, 8, grassTile, x * 8, y * 8)
+                elif tile_type == TILE_FOREST:
+                    sprite = thumby.Sprite(8, 8, forestTile, x * 8, y * 8)
+                elif tile_type == TILE_MOUNTAIN:
+                    sprite = thumby.Sprite(8, 8, mountainTile, x * 8, y * 8)
+                elif tile_type == TILE_HOUSE:
+                    sprite = thumby.Sprite(8, 8, houseTile, x * 8, y * 8)
+                else:
+                    continue
+                thumby.display.drawSprite(sprite)
+
+    # Render units
+    for unit in party + enemies:
+        if (viewport_x <= unit.position.x < viewport_x + SCREEN_TILES_X and 
+            viewport_y <= unit.position.y < viewport_y + SCREEN_TILES_Y):
+            unit_screen_x = (unit.position.x - viewport_x) * 8
+            unit_screen_y = (unit.position.y - viewport_y) * 8
+            unit.set_sprite_position(Position(unit_screen_x, unit_screen_y))
+            thumby.display.drawSprite(unit.sprite)
+
+    # Render selector
+    selector_sprite.x = (selectorPosition.x - viewport_x) * 8
+    selector_sprite.y = (selectorPosition.y - viewport_y) * 8
+    thumby.display.drawSprite(selector_sprite)
+
+def map_loop():
+    global gameState, selectedCatName, tempPos, lastPos, needsUpdate
+
+    # Handle movement
+    handle_movement()
+    
+    # Handle selection
     if thumby.buttonA.justPressed():
         cat_here = None
         for c in party:
@@ -240,8 +251,12 @@ def map_loop():
         render_map(currentLevel)
         needsUpdate = False
 
+# --- MAIN LOOP ---
+thumby.display.setFPS(8)
+
 while True:
-    frame = (frame + 1)
+    frame += 1
+    
     if gameState == 'title':
         thumby.display.fill(thumby.display.WHITE)
         thumby.display.drawText("Cats Emblem", 3, 24, thumby.display.BLACK)
@@ -257,10 +272,14 @@ while True:
     elif gameState == 'unitSelect':
         selected = thumby.display.LIGHTGRAY if frame & 1 else thumby.display.BLACK
         thumby.display.drawText("Wait", 10, 8, selected if option == 0 else thumby.display.DARKGRAY)
-        if can_attack(): thumby.display.drawText("Fight", 10, 16, selected if option == 1 else thumby.display.DARKGRAY)
+        if can_attack(): 
+            thumby.display.drawText("Fight", 10, 16, selected if option == 1 else thumby.display.DARKGRAY)
         thumby.display.drawText("End Turn", 10, 24, selected if option == 2 else thumby.display.DARKGRAY)
-        if thumby.buttonU.justPressed() and option > 0: option -= 1
-        if thumby.buttonD.justPressed() and option < 2: option += 1
+        
+        if thumby.buttonU.justPressed() and option > 0: 
+            option -= 1
+        if thumby.buttonD.justPressed() and option < 2: 
+            option += 1
         if thumby.buttonA.justPressed():
             if option == 0:
                 cat = get_selected_cat()
@@ -281,8 +300,5 @@ while True:
             selectedCatName = "null"
             gameState = 'map'
             needsUpdate = True
-            
     
-    
-    # Update display
     thumby.display.update()
