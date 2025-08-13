@@ -98,8 +98,9 @@ enemy_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]
 cat = Cat(cat_sprite, Position(2, 4), 'cat', False, False, Stats(attack=2, defense=3, hp=10, speed=4, luck=4, range=1))
 tac = Cat(cat_sprite, Position(2, 5), 'tac', False, False, Stats(attack=3, defense=2, hp=8, speed=6, luck=6, range=1))
 enemy = Cat(enemy_sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, hp=12, speed=3, luck=1, range=1))
+enemy2 = Cat(enemy_sprite, Position(5, 3), 'enemy2', False, False, Stats(attack=4, defense=1, hp=8, speed=5, luck=2, range=1))
 party = [cat, tac]
-enemies = [enemy]
+enemies = [enemy, enemy2]
 
 # --- FUNCTIONS ---
 def get_selected_cat():
@@ -118,6 +119,48 @@ def can_attack():
         if dx + dy <= 1:
             return True
     return False
+
+def battle(attacker, defender):
+    perform_attack(attacker, defender)
+    perform_attack(defender, attacker)
+
+    if attacker.stats.speed * 2 < defender.stats.speed and attacker.stats.luck > 7:
+        perform_attack(attacker, defender)
+
+    if defender.stats.speed * 2 < attacker.stats.speed and defender.stats.luck > 7:
+        perform_attack(defender, attacker)
+
+def perform_attack(attacker, defender):
+    # First attack
+    damage = calculate_damage(attacker, defender)
+    defender.stats.hp -= damage
+    
+    print(f"{attacker.name} attacks {defender.name} for {damage} damage!")
+    print(f"{defender.name} HP: {defender.stats.hp}")
+    
+    # Check if defender is defeated
+    if defender.stats.hp <= 0:
+        combat_text = f"{defender.name} is defeated!"
+        combat_timer = 60
+        print(f"{defender.name} is defeated!")
+        if defender in enemies:
+            enemies.remove(defender)
+
+def calculate_damage(attacker, defender):
+    import random
+    
+    # Base damage calculation
+    base_damage = attacker.stats.attack - defender.stats.defense
+    if base_damage < 1:
+        base_damage = 1  # Minimum 1 damage
+    
+    # Critical hit calculation
+    crit_chance = (attacker.stats.luck + attacker.stats.speed) / 20.0  # 0-1 range
+    if random.random() < crit_chance:
+        base_damage = int(base_damage * 1.25)  # 25% crit bonus
+        print(f"CRITICAL HIT!")
+    
+    return base_damage
 
 def update_selector_position(dx, dy, level):
     global viewport_x, viewport_y
@@ -289,7 +332,9 @@ while True:
                 gameState = 'map'
                 needsUpdate = True
             elif option == 1:
-                pass
+                gameState = 'enemy-select'
+                needsUpdate = True
+                option = 0
             elif option == 2:
                 gameState = 'map'
                 needsUpdate = True
@@ -300,5 +345,70 @@ while True:
             selectedCatName = "null"
             gameState = 'map'
             needsUpdate = True
+    elif gameState == 'enemy-select':
+        # Get enemies in range of the selected cat
+        selected_cat = get_selected_cat()
+        enemies_in_range = []
+        
+        if selected_cat:
+            for enemy in enemies:
+                dx = abs(enemy.position.x - selected_cat.position.x)
+                dy = abs(enemy.position.y - selected_cat.position.y)
+                if dx + dy <= selected_cat.stats.range:
+                    enemies_in_range.append(enemy)
+                    # If selector is on the selected cat, move to first enemy found
+                    if selectorPosition == selected_cat.position:
+                        selectorPosition.x = enemy.position.x
+                        selectorPosition.y = enemy.position.y
+        
+        # If no enemies in range, return to unit select
+        if len(enemies_in_range) == 0:
+            gameState = 'unitSelect'
+            option = 0
+        else:
+            # Navigate between enemies in range
+            if thumby.buttonU.justPressed() or thumby.buttonL.justPressed():
+                option = (option - 1) % len(enemies_in_range)
+                # Move cursor to the selected enemy's position
+                selectorPosition.x = enemies_in_range[option].position.x
+                selectorPosition.y = enemies_in_range[option].position.y
+                needsUpdate = True
+            elif thumby.buttonD.justPressed() or thumby.buttonR.justPressed():
+                option = (option + 1) % len(enemies_in_range)
+                # Move cursor to the selected enemy's position
+                selectorPosition.x = enemies_in_range[option].position.x
+                selectorPosition.y = enemies_in_range[option].position.y
+                needsUpdate = True
+            
+            # Update viewport to follow cursor
+            if selectorPosition.x - viewport_x < 1 and viewport_x > 0:
+                viewport_x -= 1
+            elif selectorPosition.x - viewport_x > SCREEN_TILES_X - 2 and viewport_x < len(currentLevel[0]) - SCREEN_TILES_X:
+                viewport_x += 1
+            if selectorPosition.y - viewport_y < 1 and viewport_y > 0:
+                viewport_y -= 1
+            elif selectorPosition.y - viewport_y > SCREEN_TILES_Y - 2 and viewport_y < len(currentLevel) - SCREEN_TILES_Y:
+                viewport_y += 1
+            
+            # Handle selection
+            if thumby.buttonA.justPressed():
+                # Get the selected enemy and perform combat
+                selected_cat = get_selected_cat()
+                selected_enemy = enemies_in_range[option]
+                
+                # Perform all attacks
+                battle(selected_cat, selected_enemy)
+                
+                gameState = 'map'
+                selected_cat.set_exhausted(True)
+                selectedCatName = 'null'
+            elif thumby.buttonB.justPressed():
+                gameState = 'unitSelect'
+                option = 0
+            
+            # Render the map with enemy selection overlay
+            if needsUpdate:
+                render_map(currentLevel)
+                needsUpdate = False
     
     thumby.display.update()
