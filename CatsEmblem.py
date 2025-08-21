@@ -37,10 +37,10 @@ level1 = [
 
 # --- CLASSES ---
 class Stats:
-    def __init__(self, attack=0, defense=0, hp=0, speed=0, luck=0, range=1):
+    def __init__(self, attack=0, defense=0, max_hp=0, speed=0, luck=0, range=1):
         self.attack = attack
         self.defense = defense
-        self.hp = hp
+        self.max_hp = max_hp
         self.speed = speed
         self.luck = luck
         self.range = range
@@ -54,13 +54,15 @@ class Position:
         return isinstance(other, Position) and self.x == other.x and self.y == other.y
 
 class Cat:
-    def __init__(self, sprite, position, name, selected=False, exhausted=False, stats=None):
+    def __init__(self, sprite, position, name, selected=False, exhausted=False, stats=None, enemy=False):
         self.sprite = sprite
         self.position = position
         self.selected = selected
         self.exhausted = exhausted
         self.name = name
         self.stats = stats or Stats()
+        self.enemy: bool = enemy
+        self.hp = self.stats.max_hp  # Initialize HP to max_hp
 
     def set_position(self, position):
         self.position = position
@@ -70,10 +72,29 @@ class Cat:
     
     def set_selected(self, selected):
         self.selected = selected
+    
+    def set_enemy(self, enemy):
+        self.enemy = enemy
 
     def set_sprite_position(self, position):
         self.sprite.x = position.x
         self.sprite.y = position.y
+    
+    def set_hp(self, new_hp):
+        self.hp = min(new_hp, self.stats.max_hp)  # Can't exceed max_hp
+
+class Log:
+    def __init__(self, attacker_name, attacker_hp, attacker_enemy, defender_name, defender_hp, defender_enemy, damage, old_hp, new_hp, text):
+        self.attacker_name = attacker_name
+        self.attacker_hp = attacker_hp
+        self.attacker_enemy = attacker_enemy
+        self.defender_name = defender_name
+        self.defender_hp = defender_hp
+        self.defender_enemy = defender_enemy
+        self.damage = damage
+        self.old_hp = old_hp
+        self.new_hp = new_hp
+        self.text = text
 
 # --- GAME STATE ---
 selectedCatName = "null"
@@ -88,6 +109,8 @@ viewport_x = 0
 viewport_y = 0
 option = 0
 currentLevel = level1
+combat_log = []
+current_hp_display = -1
 
 # --- SPRITES ---
 selector_sprite = thumby.Sprite(8, 8, (bytearray([126, 255, 255, 255, 255, 255, 255, 126]), bytearray([195, 129, 0, 0, 0, 0, 129, 195])), 32, 16, key=1)
@@ -95,10 +118,10 @@ cat_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]),
 enemy_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]), bytearray([255, 48, 240, 240, 63, 250, 14, 11])), 32, 16, key=1)
 
 # --- UNITS ---
-cat = Cat(cat_sprite, Position(2, 4), 'cat', False, False, Stats(attack=2, defense=3, hp=10, speed=4, luck=4, range=1))
-tac = Cat(cat_sprite, Position(2, 5), 'tac', False, False, Stats(attack=3, defense=2, hp=8, speed=6, luck=6, range=1))
-enemy = Cat(enemy_sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, hp=12, speed=3, luck=1, range=1))
-enemy2 = Cat(enemy_sprite, Position(5, 3), 'enemy2', False, False, Stats(attack=4, defense=1, hp=8, speed=5, luck=2, range=1))
+cat = Cat(cat_sprite, Position(2, 4), 'cat', False, False, Stats(attack=5, defense=3, max_hp=10, speed=8, luck=8, range=1), False)
+tac = Cat(cat_sprite, Position(2, 5), 'tac', False, False, Stats(attack=5, defense=2, max_hp=8, speed=8, luck=6, range=1), False)
+enemy = Cat(enemy_sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, max_hp=12, speed=3, luck=1, range=1), True)
+enemy2 = Cat(enemy_sprite, Position(5, 3), 'enemy2', False, False, Stats(attack=4, defense=1, max_hp=8, speed=5, luck=2, range=1), True)
 party = [cat, tac]
 enemies = [enemy, enemy2]
 
@@ -120,28 +143,56 @@ def can_attack():
             return True
     return False
 
-def battle(attacker, defender):
-    perform_attack(attacker, defender)
-    perform_attack(defender, attacker)
+def battle(attacker: Cat, defender: Cat):
+    global combat_log
+    combat_log = []  # Clear previous log
+    
+    # Record all attacks in the log
+    record_attack(attacker, defender)
+    record_attack(defender, attacker)
 
     if attacker.stats.speed * 2 < defender.stats.speed and attacker.stats.luck > 7:
-        perform_attack(attacker, defender)
+        record_attack(attacker, defender)
 
     if defender.stats.speed * 2 < attacker.stats.speed and defender.stats.luck > 7:
-        perform_attack(defender, attacker)
+        record_attack(defender, attacker)
 
-def perform_attack(attacker, defender):
-    # First attack
+def print_combat_log(log: Log):
+    # Apply damage
+    print('LOG:')
+    print(log.text)
+    print(log.attacker_name + 'HP:' + str(log.attacker_hp))
+    print(f"{log.defender_name} HP: {log.defender_hp}")
+    print(f"{log.defender_name} HP: {log.old_hp} -> {log.new_hp}")
+    
+def record_attack(attacker, defender):
+    global combat_log
+    
+    # Calculate damage
     damage = calculate_damage(attacker, defender)
-    defender.stats.hp -= damage
+    old_hp = defender.hp
+    new_hp = old_hp - damage
+
+    log = Log(
+        attacker_name=attacker.name,
+        attacker_hp=attacker.hp,
+        attacker_enemy=attacker.enemy,
+        defender_name=defender.name,
+        defender_hp=defender.hp,
+        defender_enemy=defender.enemy,
+        damage=damage,
+        old_hp=old_hp,
+        new_hp=new_hp,
+        text=f"{attacker.name} attacks {defender.name} for {damage} damage!"
+    )
     
-    print(f"{attacker.name} attacks {defender.name} for {damage} damage!")
-    print(f"{defender.name} HP: {defender.stats.hp}")
+    # Record the attack
+    combat_log.append(log)
     
-    # Check if defender is defeated
-    if defender.stats.hp <= 0:
-        combat_text = f"{defender.name} is defeated!"
-        combat_timer = 60
+    defender.set_hp(new_hp)
+    
+    # Check if defeated
+    if defender.hp <= 0:
         print(f"{defender.name} is defeated!")
         if defender in enemies:
             enemies.remove(defender)
@@ -345,6 +396,7 @@ while True:
             selectedCatName = "null"
             gameState = 'map'
             needsUpdate = True
+
     elif gameState == 'enemy-select':
         # Get enemies in range of the selected cat
         selected_cat = get_selected_cat()
@@ -396,12 +448,11 @@ while True:
                 selected_cat = get_selected_cat()
                 selected_enemy = enemies_in_range[option]
                 
-                # Perform all attacks
+                # Perform all attacks and record them
                 battle(selected_cat, selected_enemy)
-                
-                gameState = 'map'
                 selected_cat.set_exhausted(True)
-                selectedCatName = 'null'
+                selecteCatName = "null"
+                gameState = 'combat-log'
             elif thumby.buttonB.justPressed():
                 gameState = 'unitSelect'
                 option = 0
@@ -410,5 +461,42 @@ while True:
             if needsUpdate:
                 render_map(currentLevel)
                 needsUpdate = False
+
+    elif gameState == 'combat-log':
+        if len(combat_log) > 0:
+            thumby.display.fill(thumby.display.WHITE)
+            if (current_hp_display == - 1):
+                current_hp_display = combat_log[0].defender_hp
+            log = combat_log[0]
+            attackerHealth = log.attacker_hp
+            defenderHealth = current_hp_display
+            
+            # Display based on who is attacking
+            if log.attacker_enemy:
+                # Enemy is attacking (left side)
+                thumby.display.drawText(log.attacker_name, 0, 0, thumby.display.BLACK)
+                thumby.display.drawText(f"HP:{attackerHealth}", 0, 8, thumby.display.BLACK)
+                thumby.display.drawText(log.defender_name, 45, 0, thumby.display.DARKGRAY)
+                thumby.display.drawText(f"HP:{defenderHealth}", 45, 8, thumby.display.DARKGRAY)
+            else:
+                # Party is attacking (right side)
+                thumby.display.drawText(log.attacker_name, 45, 0, thumby.display.BLACK)
+                thumby.display.drawText(f"HP:{attackerHealth}", 45, 8, thumby.display.BLACK)
+                thumby.display.drawText(log.defender_name, 0, 0, thumby.display.DARKGRAY)
+                thumby.display.drawText(f"HP:{defenderHealth}", 0, 8, thumby.display.DARKGRAY)
+            
+            if current_hp_display <= combat_log[0].new_hp:
+                print_combat_log(combat_log[0])
+                combat_log.pop(0)
+                if len(combat_log) > 0:
+                    current_hp_display = combat_log[0].old_hp
+            # Animate HP counting down
+            elif (frame % 7 == 1): 
+                current_hp_display = current_hp_display - 1
+        else:
+            needsUpdate = True
+            current_hp_display = -1
+            if (frame % 7 == 1):
+                gameState = 'map'
     
     thumby.display.update()
