@@ -1,3 +1,4 @@
+import random
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
@@ -37,7 +38,33 @@ map1 = [
 
 # --- CLASSES ---
 class Stats:
-    def __init__(self, attack, defense, max_hp, speed, luck, range):
+    def __init__(
+            self,
+            attack: int,
+            defense: int,
+            max_hp: int,
+            speed: int,
+            luck: int,
+            range: int
+        ):
+        self.attack = attack
+        self.defense = defense
+        self.max_hp = max_hp
+        self.speed = speed
+        self.luck = luck
+        self.range = range
+
+## growth rates for leveling up 1-100 for each stat
+class GrowthRates:
+    def __init__(
+            self,
+            attack: int=50,
+            defense: int=50,
+            max_hp: int=50,
+            speed: int=50,
+            luck: int=50,
+            range: int=50
+        ):
         self.attack = attack
         self.defense = defense
         self.max_hp = max_hp
@@ -54,15 +81,32 @@ class Position:
         return isinstance(other, Position) and self.x == other.x and self.y == other.y
 
 class Cat:
-    def __init__(self, sprite, position, name, selected=False, exhausted=False, stats=None, enemy=False):
+    def __init__(
+            self,
+            sprite: thumby.Sprite,
+            position: Position,
+            name: str,
+            selected: bool=False,
+            exhausted: bool=False,
+            stats: Stats=Stats(attack=5, defense=5, max_hp=10, speed=5, luck=5, range=3),
+            growthRates: GrowthRates=GrowthRates(),
+            enemy: bool=False,
+            exp: int=0,
+            level: int=1,
+            next_level_exp: int=10,
+        ):
         self.sprite: thumby.Sprite = sprite
-        self.position = position
-        self.selected = selected
-        self.exhausted = exhausted
-        self.name = name
-        self.stats = stats or Stats()
+        self.position: Position = position
+        self.selected: bool = selected
+        self.exhausted: bool = exhausted
+        self.name: str = name
+        self.stats: Stats = stats
+        self.growthRates: GrowthRates = growthRates if growthRates else GrowthRates() 
         self.enemy: bool = enemy
-        self.hp = self.stats.max_hp  # Initialize HP to max_hp
+        self.hp: bool = self.stats.max_hp  # Initialize HP to max_hp
+        self.exp: int = exp
+        self.level: int = level
+        self.next_level_exp: int = next_level_exp
 
     def set_position(self, position):
         self.position = position
@@ -81,28 +125,60 @@ class Cat:
         self.sprite.y = position.y
     
     def set_hp(self, new_hp):
-        self.hp = min(new_hp, self.stats.max_hp)  # Can't exceed max_hp
+        self.hp = min(new_hp, self.stats.max_hp)
 
     def advance_animation(self):
         curFrame = self.sprite.getFrame()
         nextFrame = (curFrame + 1) % self.sprite.frameCount
-        print("Advancing animation for", self.name, "from", curFrame, "to", nextFrame)
         self.sprite.setFrame(nextFrame)
 
-class Log:
+    def add_exp(self, amount):
+        self.exp += amount
+        if self.exp >= self.next_level_exp:
+            self.level_up()
+
+    def level_up(self):
+        self.level += 1
+        self.next_level_exp += int(self.next_level_exp * 1.5)
+
+        RN = random.randint(1, 100)
+        CF = random.randint(1, 100)
+        for stat in ['attack', 'defense', 'max_hp', 'speed', 'luck', 'range']:
+            RN = (RN + CF) % 100
+            CF = (CF + RN) % 100
+            if RN <= getattr(self.growthRates, stat):
+                setattr(self.stats, stat, getattr(self.stats, stat) + 1)
+                if CF < (getattr(self.growthRates, stat) + self.stats.luck):
+                    setattr(self.stats, stat, getattr(self.stats, stat) + 1)
+             
+class LevelUpLog:
     def __init__(
             self,
-            attacker_name,
-            attacker_hp,
-            attacker_enemy,
-            attacker_sprite,
-            defender_name,
-            defender_hp,
-            defender_enemy,
-            defender_sprite,
-            damage, old_hp,
-            new_hp,
-            text
+            catName: str,
+            catSprite: thumby.Sprite,
+            newLevel: int,
+            stats: Stats,
+        ):
+        self.catName = catName
+        self.catSprite = catSprite
+        self.newLevel = newLevel
+        self.stats = stats
+
+class AttackLog:
+    def __init__(
+            self,
+            attacker_name: str,
+            attacker_hp: int,
+            attacker_enemy: bool,
+            attacker_sprite: thumby.Sprite,
+            defender_name: str,
+            defender_hp: int,
+            defender_enemy: bool,
+            defender_sprite: thumby.Sprite,
+            damage: int,
+            old_hp: int,
+            new_hp: int,
+            text: str,
         ):
         self.attacker_name = attacker_name
         self.attacker_hp = attacker_hp
@@ -121,28 +197,32 @@ class Level:
     def __init__(self, map, enemies):
         self.map = map
         self.enemies = enemies
+        self.viewport = Position()
+        self.selectorPosition = Position()
 
 class GameState:
-    def __init__(self, level, party):
+    def __init__(
+            self,
+            level,
+            party,
+            state='title',
+        ):
         self.level = level
         self.party = party
         self.current_turn = 'player'
+        self.combat_log = []
+        self.state = state
 
 # --- GAME STATE ---
+frame = 0
+delay = 0
 selectedCatName = "null"
 activeEnemy = None
 readyForBattle = False
-frame = 0
-delay = 0
-state = 'title'
 needsUpdate = False
 tempPos = Position()
 lastPos = Position()
-selectorPosition = Position()
-viewport_x = 0
-viewport_y = 0
 option = 0
-combat_log = []
 current_hp_display = -1
 
 # --- SPRITES ---
@@ -152,13 +232,13 @@ def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1,
 
 # --- UNITS ---
 catSprite = cat_sprite()
-cat = Cat(catSprite, Position(2, 4), 'cat', False, False, Stats(attack=5, defense=3, max_hp=10, speed=8, luck=8, range=4), False)
+cat = Cat(catSprite, Position(2, 4), 'cat', False, False, Stats(attack=5, defense=3, max_hp=10, speed=8, luck=8, range=4), None, False)
 tacSprite = cat_sprite()
-tac = Cat(tacSprite, Position(2, 5), 'tac', False, False, Stats(attack=5, defense=2, max_hp=8, speed=8, luck=6, range=5), False)
+tac = Cat(tacSprite, Position(2, 5), 'tac', False, False, Stats(attack=5, defense=2, max_hp=8, speed=8, luck=6, range=5), None, False)
 enemy1Sprite = enemy_sprite()
-enemy = Cat(enemy1Sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, max_hp=12, speed=3, luck=1, range=3), True)
+enemy = Cat(enemy1Sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, max_hp=12, speed=3, luck=1, range=3), None, True)
 enemy2Sprite = enemy_sprite()
-enemy2 = Cat(enemy2Sprite, Position(5, 3), 'enemy', False, False, Stats(attack=4, defense=1, max_hp=8, speed=5, luck=2, range=3), True)
+enemy2 = Cat(enemy2Sprite, Position(5, 3), 'enemy', False, False, Stats(attack=4, defense=1, max_hp=8, speed=5, luck=2, range=3), None, True)
 
 level1 = Level(map1, [enemy, enemy2])
 
@@ -183,32 +263,44 @@ def can_attack():
     return False
 
 def battle(attacker: Cat, defender: Cat):
-    global combat_log
+    global gameState
+
+    attackerExp = 0
+    defenderExp = 0
     
     # Record all attacks in the log
-    record_attack(attacker, defender)
+    attackerExp =+ record_attack(attacker, defender)
     if defender.hp <= 0:
+        attacker.add_exp(defender.stats.max_hp)
         return
-    record_attack(defender, attacker)
+    defenderExp += record_attack(defender, attacker)
     if attacker.hp <= 0:
+        defender.add_exp(attacker.stats.max_hp)
         return
 
     if attacker.stats.speed * 2 < defender.stats.speed and attacker.stats.luck > 7:
-        record_attack(attacker, defender)
+        attackerExp += record_attack(attacker, defender)
     if defender.hp <= 0:
+        attacker.add_exp(defender.stats.max_hp)
         return
 
     if defender.stats.speed * 2 < attacker.stats.speed and defender.stats.luck > 7:
-        record_attack(defender, attacker)
+         attackerExp += record_attack(defender, attacker)
+    if attacker.hp <= 0:
+        defender.add_exp(attacker.stats.max_hp)
+        return
+
+    defender.add_exp(defenderExp)
+    attacker.add_exp(attackerExp)
     
 def record_attack(attacker: Cat, defender: Cat):
-    global combat_log
+    global gameState
 
     damage = calculate_damage(attacker, defender)
     old_hp = defender.hp
     new_hp = old_hp - damage
 
-    log = Log(
+    log = AttackLog(
         attacker_name=attacker.name,
         attacker_hp=attacker.hp,
         attacker_enemy=attacker.enemy,
@@ -223,7 +315,7 @@ def record_attack(attacker: Cat, defender: Cat):
         text=f"{attacker.name} attacks {defender.name} for {damage} damage!"
     )
 
-    combat_log.append(log)
+    gameState.combat_log.append(log)
     
     defender.set_hp(new_hp)
     
@@ -238,6 +330,8 @@ def record_attack(attacker: Cat, defender: Cat):
             gameState.level.enemies.remove(attacker)
         if attacker in gameState.party:
             gameState.party.remove(attacker)
+
+    return damage
 
 def calculate_damage(attacker, defender):
     import random
@@ -255,27 +349,26 @@ def calculate_damage(attacker, defender):
     return base_damage
 
 def update_selector_position(dx, dy, level):
-    global viewport_x, viewport_y
-    new_x = max(0, min(len(level[0]) - 1, selectorPosition.x + dx))
-    new_y = max(0, min(len(level) - 1, selectorPosition.y + dy))
+    new_x = max(0, min(len(level[0]) - 1, gameState.level.selectorPosition.x + dx))
+    new_y = max(0, min(len(level) - 1, gameState.level.selectorPosition.y + dy))
 
     selCat = get_selected_cat()
     if selCat:
         if abs(new_x - selCat.position.x) + abs(new_y - selCat.position.y) > 3:
             return
 
-    selectorPosition.x = new_x
-    selectorPosition.y = new_y
+    gameState.level.selectorPosition.x = new_x
+    gameState.level.selectorPosition.y = new_y
 
     # Update viewport
-    if new_x - viewport_x < 1 and viewport_x > 0:
-        viewport_x -= 1
-    elif new_x - viewport_x > SCREEN_TILES_X - 2 and viewport_x < len(level[0]) - SCREEN_TILES_X:
-        viewport_x += 1
-    if new_y - viewport_y < 1 and viewport_y > 0:
-        viewport_y -= 1
-    elif new_y - viewport_y > SCREEN_TILES_Y - 2 and viewport_y < len(level) - SCREEN_TILES_Y:
-        viewport_y += 1
+    if new_x - gameState.level.viewport.x < 1 and gameState.level.viewport.x > 0:
+        gameState.level.viewport.x -= 1
+    elif new_x - gameState.level.viewport.x > SCREEN_TILES_X - 2 and gameState.level.viewport.x < len(level[0]) - SCREEN_TILES_X:
+        gameState.level.viewport.x += 1
+    if new_y - gameState.level.viewport.y < 1 and gameState.level.viewport.y > 0:
+        gameState.level.viewport.y -= 1
+    elif new_y - gameState.level.viewport.y > SCREEN_TILES_Y - 2 and gameState.level.viewport.y < len(level) - SCREEN_TILES_Y:
+        gameState.level.viewport.y += 1
 
 def handle_movement():
     global delay, needsUpdate
@@ -321,16 +414,16 @@ def handle_movement():
     return False
 
 def render_map(level):
-    global viewport_x, viewport_y, gameState, selectorPosition
+    global gameState
     thumby.display.fill(thumby.display.WHITE)
 
-    ## TODO adjust viewport to keep selector in view can be more that 1 tile away !!!
+    # TODO adjust viewport to keep selector in view can be more that 1 tile away !!!
     
     # Render tiles
     for y in range(SCREEN_TILES_Y):
         for x in range(SCREEN_TILES_X):
-            map_x = viewport_x + x
-            map_y = viewport_y + y
+            map_x = gameState.level.viewport.x + x
+            map_y = gameState.level.viewport.y + y
             if 0 <= map_x < len(level[0]) and 0 <= map_y < len(level):
                 tile_type = level[map_y][map_x]
                 if tile_type == TILE_GRASS:
@@ -350,20 +443,20 @@ def render_map(level):
                 thumby.display.drawSprite(sprite)
 
     for unit in gameState.party + gameState.level.enemies:
-        if (viewport_x <= unit.position.x < viewport_x + SCREEN_TILES_X and 
-            viewport_y <= unit.position.y < viewport_y + SCREEN_TILES_Y):
-            unit_screen_x = (unit.position.x - viewport_x) * 8
-            unit_screen_y = (unit.position.y - viewport_y) * 8
+        if (gameState.level.viewport.x <= unit.position.x < gameState.level.viewport.x + SCREEN_TILES_X and 
+            gameState.level.viewport.y <= unit.position.y < gameState.level.viewport.y + SCREEN_TILES_Y):
+            unit_screen_x = (unit.position.x - gameState.level.viewport.x) * 8
+            unit_screen_y = (unit.position.y - gameState.level.viewport.y) * 8
             unit.set_sprite_position(Position(unit_screen_x, unit_screen_y))
             thumby.display.drawSprite(unit.sprite)
 
     # Render selector
-    selector_sprite.x = (selectorPosition.x - viewport_x) * 8
-    selector_sprite.y = (selectorPosition.y - viewport_y) * 8
+    selector_sprite.x = (gameState.level.selectorPosition.x - gameState.level.viewport.x) * 8
+    selector_sprite.y = (gameState.level.selectorPosition.y - gameState.level.viewport.y) * 8
     thumby.display.drawSprite(selector_sprite)
 
 def map_loop():
-    global state, selectedCatName, tempPos, lastPos, needsUpdate, gameState
+    global selectedCatName, tempPos, lastPos, needsUpdate, gameState
 
     # Handle movement
     handle_movement()
@@ -372,20 +465,20 @@ def map_loop():
     if thumby.buttonA.justPressed():
         cat_here = None
         for c in gameState.party:
-            if c.position == selectorPosition:
+            if c.position == gameState.level.selectorPosition:
                 cat_here = c
                 break
         if cat_here and not cat_here.exhausted:
             selectedCatName = cat_here.name
             cat_here.set_selected(True)
             tempPos = Position(cat_here.position.x, cat_here.position.y)
-            lastPos = Position(selectorPosition.x, selectorPosition.y)
+            lastPos = Position(gameState.level.selectorPosition.x, gameState.level.selectorPosition.y)
             needsUpdate = False
         elif selectedCatName != 'null':
             cat = get_selected_cat()
             if cat:
-                cat.set_position(Position(selectorPosition.x, selectorPosition.y))
-                state = 'unitSelect'
+                cat.set_position(Position(gameState.level.selectorPosition.x, gameState.level.selectorPosition.y))
+                gameState.state = 'unitSelect'
                 needsUpdate = True
 
     if needsUpdate:
@@ -395,13 +488,11 @@ def map_loop():
 def animate_cats():
     global needsUpdate, gameState
     for c in gameState.party + gameState.level.enemies:
-        print("Animating", c.name)
         c.advance_animation()
     ## now re-render all the cats
     selector_sprite.setFrame((selector_sprite.getFrame() + 1) % selector_sprite.frameCount)
     needsUpdate = True
     
-
 # --- MAIN LOOP ---
 thumby.display.setFPS(8)
 
@@ -413,7 +504,7 @@ while True:
         if not p.exhausted:
             partyFullyExhausted = False
     if partyFullyExhausted:
-        state = 'enemy-turn'
+        gameState.state = 'enemy-turn'
 
     if (frame % 5 == 0): animate_cats()
 
@@ -421,11 +512,11 @@ while True:
         render_map(gameState.level.map)
         needsUpdate = False
 
-    if len(combat_log) > 0:
+    if len(gameState.combat_log) > 0:
         thumby.display.fill(thumby.display.WHITE)
         if (current_hp_display == - 1):
-            current_hp_display = combat_log[0].defender_hp
-        log = combat_log[0]
+            current_hp_display = gameState.combat_log[0].defender_hp
+        log = gameState.combat_log[0]
         attackerHealth = log.attacker_hp
         defenderHealth = current_hp_display
 
@@ -457,31 +548,30 @@ while True:
             log.defender_sprite.y = 8
             thumby.display.drawSprite(log.defender_sprite)
 
-        if current_hp_display <= combat_log[0].new_hp or current_hp_display <= 0:
-            combat_log.pop(0)
-            if len(combat_log) > 0:
-                current_hp_display = combat_log[0].old_hp
+        if current_hp_display <= gameState.combat_log[0].new_hp or current_hp_display <= 0:
+            gameState.combat_log.pop(0)
+            if len(gameState.combat_log) > 0:
+                current_hp_display = gameState.combat_log[0].old_hp
         # Animate HP counting down
         elif (frame % 7 == 1): 
             current_hp_display = current_hp_display - 1
-        if len(combat_log) == 0:
+        if len(gameState.combat_log) == 0:
             needsUpdate = True
             current_hp_display = -1
-            print("-----")
 
-    elif state == 'title':
+    elif gameState.state == 'title':
         thumby.display.fill(thumby.display.WHITE)
         thumby.display.drawText("Cats Emblem", 3, 24, thumby.display.BLACK)
         title_cat = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]), bytearray([0, 0, 0, 0, 0, 0, 0, 0])), 32, 8, key=1)
         thumby.display.drawSprite(title_cat)
         if thumby.buttonA.justPressed():
-            state = 'map'
+            gameState.state = 'map'
             needsUpdate = True
 
-    elif state == 'map':
+    elif gameState.state == 'map':
         map_loop()
 
-    elif state == 'unitSelect':
+    elif gameState.state == 'unitSelect':
         selected = thumby.display.LIGHTGRAY if frame & 1 else thumby.display.BLACK
         thumby.display.drawText("Wait", 10, 8, selected if option == 0 else thumby.display.DARKGRAY)
         if can_attack(): 
@@ -498,25 +588,25 @@ while True:
                 if cat:
                     cat.set_exhausted(True)
                 selectedCatName = "null"
-                state = 'map'
+                gameState.state = 'map'
                 needsUpdate = True
             elif option == 1:
-                state = 'enemy-select'
+                gameState.state = 'enemy-select'
                 needsUpdate = True
                 option = 0
             elif option == 2:
                 selectedCatName = "null"
-                state = 'enemy-turn'
+                gameState.state = 'enemy-turn'
                 needsUpdate = True
         if thumby.buttonB.justPressed():
             cat = get_selected_cat()
             if cat:
                 cat.set_position(tempPos)
             selectedCatName = "null"
-            state = 'map'
+            gameState.state = 'map'
             needsUpdate = True
 
-    elif state == 'enemy-select':
+    elif gameState.state == 'enemy-select':
         # Get enemies in range of the selected cat
         selected_cat = get_selected_cat()
         enemies_in_range = []
@@ -528,38 +618,38 @@ while True:
                 if dx + dy <= 1:
                     enemies_in_range.append(enemy)
                     # If selector is on the selected cat, move to first enemy found
-                    if selectorPosition == selected_cat.position:
-                        selectorPosition.x = enemy.position.x
-                        selectorPosition.y = enemy.position.y
+                    if gameState.level.selectorPosition == selected_cat.position:
+                        gameState.level.selectorPosition.x = enemy.position.x
+                        gameState.level.selectorPosition.y = enemy.position.y
 
         # If no enemies in range, return to unit select
         if len(enemies_in_range) == 0:
-            state = 'unitSelect'
+            gameState.state = 'unitSelect'
             option = 0
         else:
             # Navigate between enemies in range
             if thumby.buttonU.justPressed() or thumby.buttonL.justPressed():
                 option = (option - 1) % len(enemies_in_range)
                 # Move cursor to the selected enemy's position
-                selectorPosition.x = enemies_in_range[option].position.x
-                selectorPosition.y = enemies_in_range[option].position.y
+                gameState.level.selectorPosition.x = enemies_in_range[option].position.x
+                gameState.level.selectorPosition.y = enemies_in_range[option].position.y
                 needsUpdate = True
             elif thumby.buttonD.justPressed() or thumby.buttonR.justPressed():
                 option = (option + 1) % len(enemies_in_range)
                 # Move cursor to the selected enemy's position
-                selectorPosition.x = enemies_in_range[option].position.x
-                selectorPosition.y = enemies_in_range[option].position.y
+                gameState.level.selectorPosition.x = enemies_in_range[option].position.x
+                gameState.level.selectorPosition.y = enemies_in_range[option].position.y
                 needsUpdate = True
 
             # Update viewport to follow cursor
-            if selectorPosition.x - viewport_x < 1 and viewport_x > 0:
-                viewport_x -= 1
-            elif selectorPosition.x - viewport_x > SCREEN_TILES_X - 2 and viewport_x < len(gameState.level.map)[0] - SCREEN_TILES_X:
-                viewport_x += 1
-            if selectorPosition.y - viewport_y < 1 and viewport_y > 0:
-                viewport_y -= 1
-            elif selectorPosition.y - viewport_y > SCREEN_TILES_Y - 2 and viewport_y < len(gameState.level.map) - SCREEN_TILES_Y:
-                viewport_y += 1
+            if gameState.level.selectorPosition.x - gameState.level.viewport.x < 1 and gameState.level.viewport.x > 0:
+                gameState.level.viewport.x -= 1
+            elif gameState.level.selectorPosition.x - gameState.level.viewport.x > SCREEN_TILES_X - 2 and gameState.level.viewport.x < len(gameState.level.map)[0] - SCREEN_TILES_X:
+                gameState.level.viewport.x += 1
+            if gameState.level.selectorPosition.y - gameState.level.viewport.y < 1 and gameState.level.viewport.y > 0:
+                gameState.level.viewport.y -= 1
+            elif gameState.level.selectorPosition.y - gameState.level.viewport.y > SCREEN_TILES_Y - 2 and gameState.level.viewport.y < len(gameState.level.map) - SCREEN_TILES_Y:
+                gameState.level.viewport.y += 1
 
             # Handle selection
             if thumby.buttonA.justPressed():
@@ -571,9 +661,9 @@ while True:
                 battle(selected_cat, selected_enemy)
                 selected_cat.set_exhausted(True)
                 selectedCatName = "null"
-                state = 'map'
+                gameState.state = 'map'
             elif thumby.buttonB.justPressed():
-                state = 'unitSelect'
+                gameState.state = 'unitSelect'
                 option = 0
 
             # Render the map with enemy selection overlay
@@ -581,10 +671,9 @@ while True:
                 render_map(gameState.level.map)
                 needsUpdate = False
     
-    elif state == 'enemy-turn':
+    elif gameState.state == 'enemy-turn':
         ## loop through the enemies and move/attack
         if frame % 10 == 1:  # slow down enemy actions
-            print("Enemy tick")
             if activeEnemy:
                 # Check if a party member is in range to attack
                 target = None
@@ -632,27 +721,23 @@ while True:
                             if dist < closestDist:
                                 closestTile = t
                                 closestDist = dist
-                        print("Enemy moving to", closestTile.x, closestTile.y)
                         activeEnemy.set_position(closestTile)
-                        selectorPosition.x = activeEnemy.position.x
-                        selectorPosition.y = activeEnemy.position.y
+                        gameState.level.selectorPosition.x = activeEnemy.position.x
+                        gameState.level.selectorPosition.y = activeEnemy.position.y
                         needsUpdate = True
 
                 if target and readyForBattle:
-                    print("Enemy attacking", target.name)
                     battle(activeEnemy, target)
                     activeEnemy.set_exhausted(True)
                     activeEnemy = None
                     needsUpdate = True
                     readyForBattle = False
                 elif not readyForBattle:
-                    print("Enemy ready for battle")
-                    selectorPosition.x = activeEnemy.position.x
-                    selectorPosition.y = activeEnemy.position.y
+                    gameState.level.selectorPosition.x = activeEnemy.position.x
+                    gameState.level.selectorPosition.y = activeEnemy.position.y
                     readyForBattle = True
                     needsUpdate = True
                 elif not hasMove:
-                    print("Enemy cannot move or attack, ending turn")
                     activeEnemy.set_exhausted(True)
                     activeEnemy = None
                     needsUpdate = True
@@ -661,10 +746,9 @@ while True:
                 # just get the first not exhausted enemy for now
                 if not e.exhausted:
                     activeEnemy = e
-                    selectorPosition.x = activeEnemy.position.x
-                    selectorPosition.y = activeEnemy.position.y
+                    gameState.level.selectorPosition.x = activeEnemy.position.x
+                    gameState.level.selectorPosition.y = activeEnemy.position.y
                     needsUpdate = True
-                    print("Next enemy:", e.name)
                     break
 
         ## check if all enemies are exhausted
@@ -674,7 +758,7 @@ while True:
                 p.set_exhausted(False)
             for e in gameState.level.enemies:
                 e.set_exhausted(False)
-            state = 'map'
+            gameState.state = 'map'
             needsUpdate = True
 
         if needsUpdate:
