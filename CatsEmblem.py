@@ -83,6 +83,12 @@ class Cat:
     def set_hp(self, new_hp):
         self.hp = min(new_hp, self.stats.max_hp)  # Can't exceed max_hp
 
+    def advance_animation(self):
+        curFrame = self.sprite.getFrame()
+        nextFrame = (curFrame + 1) % self.sprite.frameCount
+        print("Advancing animation for", self.name, "from", curFrame, "to", nextFrame)
+        self.sprite.setFrame(nextFrame)
+
 class Log:
     def __init__(
             self,
@@ -141,14 +147,18 @@ current_hp_display = -1
 
 # --- SPRITES ---
 selector_sprite = thumby.Sprite(8, 8, (bytearray([126, 255, 255, 255, 255, 255, 255, 126]), bytearray([195, 129, 0, 0, 0, 0, 129, 195])), 32, 16, key=1)
-cat_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]), bytearray([0, 0, 0, 0, 0, 0, 0, 0])), 32, 16, key=1)
-enemy_sprite = thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244]), bytearray([255, 48, 240, 240, 63, 250, 14, 11])), 32, 16, key=1)
+def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
+def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
 
 # --- UNITS ---
-cat = Cat(cat_sprite, Position(2, 4), 'cat', False, False, Stats(attack=5, defense=3, max_hp=10, speed=8, luck=8, range=4), False)
-tac = Cat(cat_sprite, Position(2, 5), 'tac', False, False, Stats(attack=5, defense=2, max_hp=8, speed=8, luck=6, range=5), False)
-enemy = Cat(enemy_sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, max_hp=12, speed=3, luck=1, range=3), True)
-enemy2 = Cat(enemy_sprite, Position(5, 3), 'enemy', False, False, Stats(attack=4, defense=1, max_hp=8, speed=5, luck=2, range=3), True)
+catSprite = cat_sprite()
+cat = Cat(catSprite, Position(2, 4), 'cat', False, False, Stats(attack=5, defense=3, max_hp=10, speed=8, luck=8, range=4), False)
+tacSprite = cat_sprite()
+tac = Cat(tacSprite, Position(2, 5), 'tac', False, False, Stats(attack=5, defense=2, max_hp=8, speed=8, luck=6, range=5), False)
+enemy1Sprite = enemy_sprite()
+enemy = Cat(enemy1Sprite, Position(6, 4), 'enemy', False, False, Stats(attack=3, defense=2, max_hp=12, speed=3, luck=1, range=3), True)
+enemy2Sprite = enemy_sprite()
+enemy2 = Cat(enemy2Sprite, Position(5, 3), 'enemy', False, False, Stats(attack=4, defense=1, max_hp=8, speed=5, luck=2, range=3), True)
 
 level1 = Level(map1, [enemy, enemy2])
 
@@ -382,6 +392,16 @@ def map_loop():
         render_map(gameState.level.map)
         needsUpdate = False
 
+def animate_cats():
+    global needsUpdate, gameState
+    for c in gameState.party + gameState.level.enemies:
+        print("Animating", c.name)
+        c.advance_animation()
+    ## now re-render all the cats
+    selector_sprite.setFrame((selector_sprite.getFrame() + 1) % selector_sprite.frameCount)
+    needsUpdate = True
+    
+
 # --- MAIN LOOP ---
 thumby.display.setFPS(8)
 
@@ -394,6 +414,12 @@ while True:
             partyFullyExhausted = False
     if partyFullyExhausted:
         state = 'enemy-turn'
+
+    if (frame % 5 == 0): animate_cats()
+
+    if needsUpdate:
+        render_map(gameState.level.map)
+        needsUpdate = False
 
     if len(combat_log) > 0:
         thumby.display.fill(thumby.display.WHITE)
