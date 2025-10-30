@@ -97,7 +97,6 @@ canWalkOn = {
 # --- CONSTANTS ---
 SCREEN_TILES_X = 9
 SCREEN_TILES_Y = 5
-MOVE_DELAY = 8
 
 # --- LEVEL DATA ---
 map1 = [
@@ -257,7 +256,7 @@ class Cat:
                 setattr(self.stats, stat, getattr(self.stats, stat) + 1)
                 if CF < (getattr(self.growthRates, stat) + self.stats.luck):
                     setattr(self.stats, stat, getattr(self.stats, stat) + 1)
-             
+
 class LevelUpLog:
     def __init__(
             self,
@@ -324,12 +323,11 @@ class GameState:
             party: list[Cat],
             state='title',
         ):
-        self.level: Level = level
-        for i, p in enumerate(party):
-            p.set_position(level.startingPositions[i])
         self.party = party
         self.current_turn: str = 'player'
+        self.load_level(level)
         self.combat_log = []
+        self.dialog: list[Dialog] = []
         self.state = state
 
     def load_level(self, level: Level):
@@ -342,6 +340,27 @@ class GameState:
         self.level = level
         self.selectorPosition = Position(self.party[0].position.x, self.party[0].position.y)
         needsUpdate = True
+
+    def add_dialog(self, dialog: 'Dialog'):
+        self.dialog.append(dialog)
+
+    def pop_dialog(self):
+        if self.dialog:
+            self.dialog.pop(0)
+
+class Dialog:
+    def __init__(
+            self,
+            lines: list[str]=[],
+            left_cats: list[Cat]=[],
+            right_cats: list[Cat]=[],
+            currentlyTalking: str=''
+        ):
+        self.lines = lines
+        self.currentlyTalking = currentlyTalking
+        self.left_cats = left_cats
+        self.right_cats = right_cats
+
 
 # --- GAME STATE ---
 frame = 0
@@ -388,7 +407,6 @@ def generate_enemy(level: int, position: Position, ai = 'searchAndDestroy', name
         level,
         aiType=ai
     )
-
 
 # --- LEVELS ---
 level1 = Level(
@@ -793,7 +811,6 @@ def get_attack_tile(cat: Cat):
                         target = p
     return closest_tile, target
 
-
 # --- MAIN LOOP ---
 thumby.display.setFPS(8)
 while True:
@@ -805,15 +822,53 @@ while True:
             partyFullyExhausted = False
     if partyFullyExhausted:
         gameState.state = 'enemy-turn'
+    
     if len(gameState.party) == 0:
         gameState.state = 'game-over'
+    
     if (frame % 5 == 0): animate_cats()
 
     if needsUpdate:
         render_map(gameState.level.map)
         needsUpdate = False
 
-    if len(gameState.combat_log) > 0:
+    if len(gameState.dialog) > 0:
+        thumby.display.fill(thumby.display.WHITE)
+        thumby.display.drawLine(0, 14, 72, 14, thumby.display.BLACK)
+        dialog = gameState.dialog[0]
+        yOffset = 1
+        xOffset = 4
+        for cat in dialog.left_cats:
+            clone = cat_sprite()
+            clone.x = xOffset
+            clone.y = yOffset
+            thumby.display.drawSprite(clone)
+            if cat.name == dialog.currentlyTalking:
+                thumby.display.drawLine(xOffset + 3, yOffset +12, xOffset + 5, yOffset + 10, thumby.display.BLACK)
+                thumby.display.drawLine(xOffset + 5, yOffset + 10, xOffset + 7, yOffset + 12, thumby.display.BLACK)
+                thumby.display.drawLine(xOffset + 3, yOffset + 13, xOffset + 8,  yOffset + 13, thumby.display.WHITE)
+            xOffset += 10
+        xOffset = 62
+        for cat in dialog.right_cats:
+            clone = cat_sprite()
+            clone.x = xOffset
+            clone.y = yOffset
+            thumby.display.drawSprite(clone)
+            if cat.name == dialog.currentlyTalking:
+                thumby.display.drawLine(xOffset + 3, yOffset +12, xOffset + 5, yOffset + 10, thumby.display.BLACK)
+                thumby.display.drawLine(xOffset + 5, yOffset + 10, xOffset + 7, yOffset + 12, thumby.display.BLACK)
+                thumby.display.drawLine(xOffset + 3, yOffset + 13, xOffset + 8,  yOffset + 13, thumby.display.WHITE)
+            xOffset -= 10
+        yOffset = 16
+
+        for line in dialog.lines:
+            thumby.display.drawText(line, 1, yOffset, thumby.display.BLACK)
+            yOffset += 8
+        if thumby.buttonA.justPressed():
+            gameState.pop_dialog()
+            needsUpdate = True
+
+    elif len(gameState.combat_log) > 0:
         thumby.display.fill(thumby.display.WHITE)
         if (current_hp_display == - 1):
             current_hp_display = gameState.combat_log[0].defender_hp
@@ -867,6 +922,27 @@ while True:
         thumby.display.drawSprite(title_cat)
         if thumby.buttonA.justPressed():
             gameState.state = 'map'
+            gameState.add_dialog(Dialog(
+                lines=[
+                    "Must conquer",
+                    ", undeniable",
+                    "is my fate",
+                ],
+                currentlyTalking="cat",
+                left_cats=[cat],
+                right_cats=[tac]
+            ))
+            gameState.add_dialog(Dialog(
+                lines=[
+                    "Tac I must",
+                    "take you",
+                    ", please",
+                ],
+                currentlyTalking="cat",
+                left_cats=[cat],
+                right_cats=[tac]
+            ))
+
             needsUpdate = True
 
     elif gameState.state == 'map':
