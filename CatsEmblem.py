@@ -14,15 +14,23 @@ coastY = (bytearray([160, 208, 136, 16, 164, 194, 196, 160, 160, 196, 130, 68, 1
 bridge = (bytearray([126, 126, 126, 126, 126, 126, 126, 126]), bytearray([193, 193, 193, 193, 193, 193, 193, 193]))
 cliffT = (bytearray([254, 254, 254, 254, 254, 254, 254, 254]), bytearray([1, 1, 1, 1, 1, 1, 1, 1]))
 cliffR = (bytearray([255, 255, 255, 255, 255, 255, 255, 0]), bytearray([0, 0, 0, 0, 0, 0, 0, 255]))
-cliffBTLBR = (bytearray([126, 253, 251, 247, 239, 223, 191, 127]), bytearray([255, 254, 252, 248, 240, 224, 192, 128])) # bottom to left then top to right
-cliffTTLBR = (bytearray([127, 191, 223, 239, 247, 251, 253, 254]), bytearray([128, 64, 32, 16, 72, 36, 66, 1])) # top to left then bottom to right
+cliffBTLBR = (bytearray([126, 253, 251, 247, 239, 223, 191, 127]), bytearray([255, 254, 252, 248, 240, 224, 192, 128]))
+cliffTTLBR = (bytearray([127, 191, 223, 239, 247, 251, 253, 254]), bytearray([128, 64, 32, 16, 72, 36, 66, 1]))
 cliffStraight = (bytearray([126, 126, 126, 126, 126, 126, 126, 126]), bytearray([255, 255, 255, 255, 255, 255, 255, 255]))
 coastCornerBR = (bytearray([160, 208, 160, 0, 164, 217, 194, 247, 136, 200, 128, 4, 130, 192, 194, 247]), bytearray([32, 16, 32, 0, 36, 25, 0, 0, 8, 8, 0, 4, 2, 0, 0, 0]))
 stairs = (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([85, 85, 85, 85, 85, 85, 85, 85]))
-shop = (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([254, 2, 5, 229, 229, 5, 2, 254]))
+shop_tile = (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([254, 2, 5, 229, 229, 5, 2, 254]))
 wallTop = (bytearray([127, 127, 127, 127, 127, 127, 127, 1]), bytearray([128, 254, 254, 254, 254, 254, 254, 254]))
 wallSide = (bytearray([17, 17, 68, 68, 17, 17, 68, 68]), bytearray([85, 17, 85, 68, 85, 17, 85, 68]))
 waterCliff = (bytearray([0, 1, 3, 7, 15, 31, 63, 127]), bytearray([1, 2, 4, 8, 16, 32, 64, 128]))
+
+catsCave = bytearray([1,0,192,224,225,199,7,7,7,7,199,225,224,192,0,1,
+           0,0,0,1,1,240,248,248,248,248,240,1,1,0,0,0])
+
+bitmap0 = bytearray([120,254,254,255,255,255,255,254,254,120,
+           0,1,1,3,3,3,3,1,1,0])
+bitmap0SHD = bytearray([204,0,1,1,0,0,1,1,0,204,
+           0,0,2,2,0,0,2,2,0,0])
 
 # --- TILE TYPES ---
 TILE_GRASS = 0
@@ -60,7 +68,6 @@ TILE_WATER_CLIFF_YFLIP = 31
 TILE_WATER_CLIFF_XFLIP = 32
 TILE_WATER_CLIFF_XYFLIP = 33
 
-## Dictionary for if cat can walk on tile type
 canWalkOn = {
     TILE_GRASS: True,
     TILE_FOREST: True,
@@ -113,8 +120,8 @@ map1 = [
     [TILE_MOUNTAIN, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, TILE_FOREST, TILE_MOUNTAIN],
     [TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN],
     [TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, EMPTY, EMPTY, TILE_MOUNTAIN],
-    [TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, TILE_FOREST],
-    [TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, TILE_FOREST],
+    [TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, TILE_HOUSE, TILE_GRASS, TILE_HOUSE, TILE_FOREST],
+    [TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, TILE_SHOP, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, TILE_FOREST],
     [TILE_FOREST, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_FOREST]
 ]
 
@@ -154,7 +161,6 @@ class Stats:
         self.luck = luck
         self.range = range
 
-## growth rates for leveling up 1-100 for each stat
 class GrowthRates:
     def __init__(
             self,
@@ -180,6 +186,16 @@ class Position:
     def __eq__(self, other):
         return isinstance(other, Position) and self.x == other.x and self.y == other.y
 
+class Item:
+    def __init__(self, name: str, item_type: str, effect=None, attack=0, accuracy=0, range=1, crit=0):
+        self.name = name
+        self.type = item_type
+        self.effect = effect
+        self.attack = attack
+        self.accuracy = accuracy
+        self.range = range
+        self.crit = crit
+
 class Cat:
     _id_counter = 0  # Class variable for unique IDs
     def __init__(
@@ -195,7 +211,8 @@ class Cat:
             exp: int=0,
             level: int=1,
             next_level_exp: int=10,
-            aiType: str='stand' or 'searchAndDestroy'
+            aiType: str='stand' or 'searchAndDestroy',
+            items: list[Item]=[]
         ):
         self.id = f"cat_{Cat._id_counter}"  # Generate a sequential ID
         Cat._id_counter += 1
@@ -213,9 +230,22 @@ class Cat:
         self.level: int = level
         self.next_level_exp: int = next_level_exp
         self.aiType: str = aiType  # 'stand' or 'searchAndDestroy'
+        self.items: list[Item] = items[:4]  # Limit inventory to 4 items
+
+    def use_item(self, item_index):
+        if item_index < 0 or item_index >= len(self.items):
+            return 
+
+        item = self.items[item_index]
+        if item.type == 'consumable' and item.effect and 'heal' in item.effect:
+            self.hp = min(self.stats.max_hp, self.hp + item.effect['heal'])
+            self.items.pop(item_index)
 
     def set_position(self, position: Position):
         self.position = position
+
+    def set_moved(self, moved):
+        self.moved = moved
     
     def set_exhausted(self, exhausted):
         self.exhausted = exhausted
@@ -242,6 +272,17 @@ class Cat:
         self.exp += amount
         if self.exp >= self.next_level_exp:
             self.level_up()
+
+    def get_weapon(self):
+        for item in self.items:
+            if item.type == 'weapon':
+                return item
+        return Item(name="Fists", item_type="weapon", attack=0, accuracy=90, range=1, crit=0)
+
+    def open_item_menu(self):
+        global gameState, needsUpdate
+        gameState.state = 'item-menu'
+        needsUpdate = True
 
     def level_up(self):
         self.level += 1
@@ -299,14 +340,66 @@ class AttackLog:
         self.new_hp = new_hp
         self.text = text
 
+class Dialog:
+    def __init__(
+            self,
+            lines: list[str]=[],
+            left_cats: list[Cat]=[],
+            right_cats: list[Cat]=[],
+            currentlyTalking: str='',
+            lambda_after=None
+        ):
+        self.lines = lines
+        self.currentlyTalking = currentlyTalking
+        self.left_cats = left_cats
+        self.right_cats = right_cats
+        self.lambda_after = lambda_after
+
+class House:
+    def __init__(
+            self,
+            position: Position,
+            dialogs: list[Dialog]=[],
+            postVisitDialog: list[Dialog]=[]
+        ):
+        self.position = position
+        self.dialogs = dialogs
+        self.postVisitDialog = postVisitDialog
+        self.visited = False
+    
+    def visit(self):
+        self.visited = True
+
+    def has_more_dialogs(self):
+        if self.visited:
+            return len(self.postVisitDialog) > 0
+        else:
+            return len(self.dialogs) > 0
+
+class ShopItem:
+    def __init__(self, item: Item, price: int):
+        self.item: Item = item
+        self.price: int = price
+
+class Shop:
+    def __init__(
+            self,
+            position: Position,
+            inventory: list[ShopItem]=[],
+        ):
+        self.position = position
+        self.inventory = inventory
+
 class Level:
     def __init__(
             self,
             map,
-            enemies,
+            enemies: list[Cat],
             number,
             seizePosition=Position(1, 1),
-            startingPositions=[]
+            startingPositions=[],
+            shops: list[Shop]=[],
+            houses: list[House]=[]
         ):
         self.map = map
         self.enemies = enemies
@@ -315,14 +408,17 @@ class Level:
         self.number = number
         self.seizePosition = seizePosition
         self.startingPositions = startingPositions
+        self.shops = shops
+        self.houses: list[House] = houses
 
 class GameState:
     def __init__(
             self,
-            level,
+            level: Level,
             party: list[Cat],
             state='title',
         ):
+        self.bank = 0
         self.party = party
         self.current_turn: str = 'player'
         self.load_level(level)
@@ -338,7 +434,8 @@ class GameState:
             p.moved = False
             p.set_hp(p.stats.max_hp)
         self.level = level
-        self.selectorPosition = Position(self.party[0].position.x, self.party[0].position.y)
+        self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
+         
         needsUpdate = True
 
     def add_dialog(self, dialog: 'Dialog'):
@@ -348,19 +445,49 @@ class GameState:
         if self.dialog:
             self.dialog.pop(0)
 
-class Dialog:
-    def __init__(
-            self,
-            lines: list[str]=[],
-            left_cats: list[Cat]=[],
-            right_cats: list[Cat]=[],
-            currentlyTalking: str=''
-        ):
-        self.lines = lines
-        self.currentlyTalking = currentlyTalking
-        self.left_cats = left_cats
-        self.right_cats = right_cats
+    def get_selected_cat(self):
+        for c in self.party:
+            if c.id == selectedCatId:
+                return c
+        return None
+    
+    def update_selector_position(self, x, y):
+        new_x = max(0, min(len(self.level.map[0]) - 1, x))
+        new_y = max(0, min(len(self.level.map) - 1, y))
+        selCat = self.get_selected_cat()
+        if selCat:
+            if abs(new_x - selCat.position.x) + abs(new_y - selCat.position.y) > selCat.stats.range:
+                return
 
+        self.level.selectorPosition.x = new_x
+        self.level.selectorPosition.y = new_y
+
+        center_x = SCREEN_TILES_X // 2
+        center_y = SCREEN_TILES_Y // 2
+
+        viewport_x = max(0, min(len(self.level.map[0]) - SCREEN_TILES_X, new_x - center_x))
+        viewport_y = max(0, min(len(self.level.map) - SCREEN_TILES_Y, new_y - center_y))
+
+        self.level.viewport.x = viewport_x
+        self.level.viewport.y = viewport_y
+
+    def cat_is_on_shop(self):
+        lateBirthdayCelebration = self.get_selected_cat()
+        if not lateBirthdayCelebration:
+            return None
+        for shop in self.level.shops:
+            if lateBirthdayCelebration.position == shop.position:
+                return shop
+        return None
+
+    def cat_is_on_house(self):
+        neo = self.get_selected_cat()
+        if not neo:
+            return None
+        for house in self.level.houses:
+            if neo.position == house.position:
+                return house
+        return None
 
 # --- GAME STATE ---
 frame = 0
@@ -373,15 +500,43 @@ option = 0
 current_hp_display = -1
 
 # --- SPRITES ---
-selector_sprite = thumby.Sprite(8, 8, (bytearray([255, 255, 255, 255, 255, 255, 255, 255, 24, 126, 126, 255, 255, 126, 126, 24, 28, 126, 127, 255, 255, 254, 126, 56]), bytearray([199, 129, 1, 0, 0, 128, 129, 227, 0, 0, 0, 0, 0, 0, 0, 0, 227, 129, 128, 0, 0, 1, 129, 199])), 32, 16, key=1)
+selector_sprite = thumby.Sprite(10, 10, (bitmap0, bitmap0SHD) , 32, 16, key=1)
 def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
 def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
 
+## --- ITEMS ---
+tuna = Item(name="Tuna", item_type="consumable", effect={"heal": 10})
+
+## --- WEAPONS ---
+stick = Item(name="Stick", item_type="weapon", attack=1, accuracy=90, range=1, crit=0)
+slingshot = Item(name="Slingshot", item_type="weapon", attack=2, accuracy=75, range=2, crit=5)
+baseballBat = Item(name="Baseball Bat", item_type="weapon", attack=5, accuracy=70, range=1, crit=15)
+dagger = Item(name="Dagger", item_type="weapon", attack=3, accuracy=80, range=1, crit=10)
+sword = Item(name="Sword", item_type="weapon", attack=4, accuracy=85, range=1, crit=5)
+
 # --- UNITS ---
-catSprite = cat_sprite()
-cat = Cat(catSprite, Position(2, 4), 'cat', False, False, Stats(attack=5, defense=3, max_hp=10, speed=8, luck=4, range=4), None, False)
-tacSprite = cat_sprite()
-tac = Cat(tacSprite, Position(2, 5), 'tac', False, False, Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=6), None, False)
+cat = Cat(
+    cat_sprite(),
+    Position(2, 4),
+    'cat',
+    False,
+    False,
+    Stats(attack=5, defense=3, max_hp=10, speed=8, luck=4, range=4),
+    None,
+    False,
+    items=[stick, tuna]
+)
+tac = Cat(
+    cat_sprite(),
+    Position(5, 13),
+    'tac',
+    False,
+    False,
+    Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=6),
+    None,
+    False,
+    items=[slingshot]
+)
 
 def get_stats_for_level(level: int):
     return Stats(
@@ -393,7 +548,7 @@ def get_stats_for_level(level: int):
         range=3
     )
 
-def generate_enemy(level: int, position: Position, ai = 'searchAndDestroy', name = 'enemy'):
+def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='enemy', weapon=stick):
     enemySprite = enemy_sprite()
     return Cat(
         enemySprite,
@@ -405,7 +560,8 @@ def generate_enemy(level: int, position: Position, ai = 'searchAndDestroy', name
         None,
         True,
         level,
-        aiType=ai
+        aiType=ai,
+        items=[weapon]
     )
 
 # --- LEVELS ---
@@ -418,7 +574,62 @@ level1 = Level(
     ], 
     1, 
     Position(1, 2),
-    [Position(5,14), Position(4,14)]
+    [Position(5,14), Position(4,14)],
+    houses = [
+        House(
+            Position(8, 13),
+            [Dialog(
+                lines=[
+                    "save our home",
+                    "Here is 500g"
+                ],
+                left_cats=[cat],
+                right_cats=[],
+                currentlyTalking='cat',
+                lambda_after=lambda: setattr(gameState, 'bank', gameState.bank + 500)
+            )],
+            [Dialog(
+                lines=[
+                    "Thats all",
+                    "we got"
+                ],
+                left_cats=[],
+                right_cats=[cat],
+                currentlyTalking='cat'
+            )]
+        ),
+        House(
+            Position(6, 13),
+            [Dialog(
+                lines=[
+                    "join me tac",
+                ],
+                left_cats=[cat],
+                right_cats=[tac],
+                currentlyTalking='cat',
+                lambda_after=lambda: gameState.party.append(tac)
+            ), Dialog(
+                lines=[
+                    "I feel",
+                    "ready for"
+                    "anything"
+                ],
+                left_cats=[cat],
+                right_cats=[tac],
+                currentlyTalking='tac'
+            )],
+        )
+    ],
+    shops = [
+        Shop(
+            Position(3, 14),
+            inventory=[
+                ShopItem(tuna, 80),
+                ShopItem(stick, 100),
+                ShopItem(slingshot, 200)
+            ]
+        )
+    ]
 )
 level2 = Level(
     map2, 
@@ -433,49 +644,32 @@ level2 = Level(
 )
 
 ## --- INITIALIZE GAME STATE ---
-gameState = GameState(level1, [cat, tac])
-
-# --- FUNCTIONS ---
-def get_selected_cat():
-    for c in gameState.party:
-        if c.id == selectedCatId:
-            return c
-    return None
+gameState = GameState(level1, [cat])
 
 def find_valid_positions(cat: Cat, gameState: GameState):
     def is_walkable(position):
-        # Check if the position is within bounds
         if not (0 <= position.x < len(gameState.level.map[0]) and 0 <= position.y < len(gameState.level.map)):
             return False
-        # Check if the tile is walkable
         tile = gameState.level.map[position.y][position.x]
         if tile not in canWalkOn or not canWalkOn[tile]:
             return False
         return True
 
     def is_occupied(position):
-        # Check if the position is occupied by a party member or enemy
         if cat.enemy:
-            # Enemies cannot pass through party members
             return any(p.position == position for p in gameState.party)
         else:
-            # Party members cannot pass through enemies
             return any(e.position == position for e in gameState.level.enemies)
 
-    # DFS implementation
     def dfs(current_pos, remaining_range, visited: list):
-        # Base case: Out of range or already visited
         if remaining_range < 0 or current_pos in visited:
             return
 
-        # Check if the current position is walkable and not occupied
         if not is_walkable(current_pos) or is_occupied(current_pos):
             return
 
-        # Mark the current position as visited
         visited.append(current_pos)
 
-        # Explore neighbors (up, down, left, right)
         neighbors = [
             Position(current_pos.x + 1, current_pos.y),
             Position(current_pos.x - 1, current_pos.y),
@@ -485,15 +679,13 @@ def find_valid_positions(cat: Cat, gameState: GameState):
         for neighbor in neighbors:
             dfs(neighbor, remaining_range - 1, visited)
 
-    # Initialize DFS
     visited: list[Position] = []
     dfs(cat.position, cat.stats.range + 1, visited)
 
-    # Return the list of valid positions
     return visited
 
 def can_attack():
-    cat = get_selected_cat()
+    cat = gameState.get_selected_cat()
     if not cat:
         return False
     if cat.exhausted:
@@ -501,7 +693,7 @@ def can_attack():
     for enemy in gameState.level.enemies:
         dx = abs(enemy.position.x - cat.position.x)
         dy = abs(enemy.position.y - cat.position.y)
-        if dx + dy <= 1:
+        if dx + dy <= cat.get_weapon().range and dx + dy >= cat.get_weapon().range:
             return True
     return False
 
@@ -510,29 +702,33 @@ def battle(attacker: Cat, defender: Cat):
 
     attackerExp = 0
     defenderExp = 0
-    
-    # Record all attacks in the log
+
     attackerExp =+ record_attack(attacker, defender)
     if defender.hp <= 0:
         attacker.add_exp(defender.stats.max_hp)
         return
-    
-    defenderExp += record_attack(defender, attacker)
-    if attacker.hp <= 0:
-        defender.add_exp(attacker.stats.max_hp)
-        return
 
-    if attacker.stats.speed * int(1.5 > defender.stats.speed):
+    enemy_range = defender.get_weapon().range
+    dx = abs(attacker.position.x - defender.position.x)
+    dy = abs(attacker.position.y - defender.position.y)
+    if dx + dy <= enemy_range and dx + dy >= enemy_range:
+        defenderExp += record_attack(defender, attacker)
+        if attacker.hp <= 0:
+            defender.add_exp(attacker.stats.max_hp)
+            return
+
+    if attacker.stats.speed * int(1.5) > defender.stats.speed:
         attackerExp += record_attack(attacker, defender)
     if defender.hp <= 0:
         attacker.add_exp(defender.stats.max_hp)
         return
 
-    if defender.stats.speed * int(1.5 > attacker.stats.speed):
-         attackerExp += record_attack(defender, attacker)
-    if attacker.hp <= 0:
-        defender.add_exp(attacker.stats.max_hp)
-        return
+    if dx + dy <= enemy_range and dx + dy >= enemy_range:
+        if defender.stats.speed * int(1.5) > attacker.stats.speed:
+            attackerExp += record_attack(defender, attacker)
+        if attacker.hp <= 0:
+            defender.add_exp(attacker.stats.max_hp)
+            return
 
     defender.add_exp(defenderExp)
     attacker.add_exp(attackerExp)
@@ -548,7 +744,7 @@ def record_attack(attacker: Cat, defender: Cat):
         attacker_name=attacker.name,
         attacker_hp=attacker.hp,
         attacker_enemy=attacker.enemy,
-        attacker_sprite=attacker.sprite,    
+        attacker_sprite=attacker.sprite,
         defender_name=defender.name,
         defender_hp=defender.hp,
         defender_enemy=defender.enemy,
@@ -560,15 +756,15 @@ def record_attack(attacker: Cat, defender: Cat):
     )
 
     gameState.combat_log.append(log)
-    
+
     defender.set_hp(new_hp)
-    
+
     if defender.hp <= 0:
         if defender in gameState.level.enemies:
             gameState.level.enemies.remove(defender)
         if defender in gameState.party:
             gameState.party.remove(defender)
-    
+
     if attacker.hp <= 0:
         if attacker in gameState.level.enemies:
             gameState.level.enemies.remove(attacker)
@@ -579,46 +775,20 @@ def record_attack(attacker: Cat, defender: Cat):
 
 def calculate_damage(attacker, defender):
     import random
-    
-    # Base damage calculation
+
     base_damage = attacker.stats.attack - defender.stats.defense
     if base_damage < 1:
-        base_damage = 1  # Minimum 1 damage
-    
-    # Critical hit calculation
-    crit_chance = (attacker.stats.luck + attacker.stats.speed) / 20.0  # 0-1 range
+        base_damage = 1
+
+    crit_chance = (attacker.stats.luck + attacker.stats.speed) / 20.0
     if random.random() < crit_chance:
-        base_damage = int(base_damage * 1.25)  # 25% crit bonus
+        base_damage = int(base_damage * 1.25)
     
     return base_damage
 
-def update_selector_position(x, y, level):
-    new_x = max(0, min(len(level[0]) - 1, x))
-    new_y = max(0, min(len(level) - 1, y))
-
-    selCat = get_selected_cat()
-    if selCat:
-        if abs(new_x - selCat.position.x) + abs(new_y - selCat.position.y) > selCat.stats.range:
-            return
-
-    gameState.level.selectorPosition.x = new_x
-    gameState.level.selectorPosition.y = new_y
-
-    # Center the viewport around the selector
-    center_x = SCREEN_TILES_X // 2  # Center x position (4 for 9 tiles wide)
-    center_y = SCREEN_TILES_Y // 2  # Center y position (2 for 5 tiles high)
-
-    # Calculate the new viewport position to center the selector
-    viewport_x = max(0, min(len(level[0]) - SCREEN_TILES_X, new_x - center_x))
-    viewport_y = max(0, min(len(level) - SCREEN_TILES_Y, new_y - center_y))
-
-    gameState.level.viewport.x = viewport_x
-    gameState.level.viewport.y = viewport_y
-
 def handle_movement():
     global needsUpdate, gameState
-    
-    # Handle immediate button presses
+
     x = gameState.level.selectorPosition.x
     y = gameState.level.selectorPosition.y
     isCatSelected = selectedCatId is not None
@@ -644,7 +814,7 @@ def handle_movement():
                     isWalkable = False
                     break
             canUpdate = isWalkable or selectedCatId is None
-            update_selector_position(x + (dx if canUpdate else 0), y + (dy if canUpdate else 0), gameState.level.map)
+            gameState.update_selector_position(x + (dx if canUpdate else 0), y + (dy if canUpdate else 0))
             needsUpdate = True
             return True
     
@@ -663,7 +833,7 @@ def handle_movement():
                     isWalkable = False
                     break
             canUpdate = isWalkable or selectedCatId is None
-            update_selector_position(x + (dx if canUpdate else 0), y + (dy if canUpdate else 0), gameState.level.map)
+            gameState.update_selector_position(x + (dx if canUpdate else 0), y + (dy if canUpdate else 0))
             needsUpdate = True
             return True
     return False
@@ -672,9 +842,7 @@ def render_map(level):
     global gameState
     thumby.display.fill(thumby.display.WHITE)
 
-    # TODO adjust viewport to keep selector in view can be more that 1 tile away !!!
-    
-    # Render tiles
+
     for y in range(SCREEN_TILES_Y):
         for x in range(SCREEN_TILES_X):
             map_x = gameState.level.viewport.x + x
@@ -722,7 +890,7 @@ def render_map(level):
                 elif tile_type == TILE_STAIRS:
                     sprite = thumby.Sprite(8, 8, stairs, x * 8, y * 8)
                 elif tile_type == TILE_SHOP:
-                    sprite = thumby.Sprite(8, 8, shop, x * 8, y * 8)
+                      sprite = thumby.Sprite(8, 8, shop_tile, x * 8, y * 8)
                 elif tile_type == WALL_TOP:
                     sprite = thumby.Sprite(8, 8, wallTop, x * 8, y * 8)
                 elif tile_type == WALL_SIDE:
@@ -765,22 +933,21 @@ def render_map(level):
             thumby.display.drawSprite(unit.sprite)
 
     # Render selector
-    selector_sprite.x = (gameState.level.selectorPosition.x - gameState.level.viewport.x) * 8
-    selector_sprite.y = (gameState.level.selectorPosition.y - gameState.level.viewport.y) * 8
+    selector_sprite.x = (gameState.level.selectorPosition.x - gameState.level.viewport.x) * 8 - 1
+    selector_sprite.y = (gameState.level.selectorPosition.y - gameState.level.viewport.y) * 8 - 1
     thumby.display.drawSprite(selector_sprite)
 
 def animate_cats():
     global needsUpdate, gameState
     for c in gameState.party + gameState.level.enemies:
         c.advance_animation()
-    ## now re-render all the cats
-    selector_sprite.setFrame((selector_sprite.getFrame() + 1) % selector_sprite.frameCount)
+    selector_sprite.setFrame((selector_sprite.getFrame() + 1) % (selector_sprite.frameCount + 1))
     needsUpdate = True
 
 def get_attack_tile(cat: Cat):
     global gameState
 
-    enemy_range = (cat.stats.range + 1) if cat.aiType == "searchAndDestroy" else 1
+    enemy_range = (cat.stats.range + cat.get_weapon().range) if cat.aiType == "searchAndDestroy" else 1
     domain = find_valid_positions(cat, gameState)
     closest_tile = None
     target = None
@@ -813,6 +980,7 @@ def get_attack_tile(cat: Cat):
 
 # --- MAIN LOOP ---
 thumby.display.setFPS(8)
+
 while True:
     frame += 1
 
@@ -825,8 +993,6 @@ while True:
     
     if len(gameState.party) == 0:
         gameState.state = 'game-over'
-    
-    if (frame % 5 == 0): animate_cats()
 
     if needsUpdate:
         render_map(gameState.level.map)
@@ -865,6 +1031,8 @@ while True:
             thumby.display.drawText(line, 1, yOffset, thumby.display.BLACK)
             yOffset += 8
         if thumby.buttonA.justPressed():
+            if dialog.lambda_after:
+                dialog.lambda_after()
             gameState.pop_dialog()
             needsUpdate = True
 
@@ -932,24 +1100,13 @@ while True:
                 left_cats=[cat],
                 right_cats=[tac]
             ))
-            gameState.add_dialog(Dialog(
-                lines=[
-                    "Tac I must",
-                    "take you",
-                    ", please",
-                ],
-                currentlyTalking="cat",
-                left_cats=[cat],
-                right_cats=[tac]
-            ))
 
             needsUpdate = True
 
     elif gameState.state == 'map':
-        # Handle movement
         handle_movement()
-        
-        # Handle selection
+        if (frame % 5 == 0): animate_cats()
+
         if thumby.buttonA.justPressed():
             cat_here = None
             for c in gameState.party:
@@ -959,14 +1116,14 @@ while True:
             if cat_here:
                 selectedCatId = cat_here.id
                 if cat_here.exhausted:
-                    gameState.state = 'unitSelect'  # View stats for exhausted cats
+                    gameState.state = 'unitSelect'
                 else:
                     cat_here.set_selected(True)
                     lastPos = Position(gameState.level.selectorPosition.x, gameState.level.selectorPosition.y)
                     gameState.state = 'unitSelect'
                 needsUpdate = True
             elif selectedCatId != None:
-                cat = get_selected_cat()
+                cat = gameState.get_selected_cat()
                 if cat:
                     cat.set_position(Position(gameState.level.selectorPosition.x, gameState.level.selectorPosition.y))
                     cat.moved = True
@@ -980,59 +1137,81 @@ while True:
                     if enemy.position == gameState.level.selectorPosition:
                         selectedCatId = enemy.id
                         gameState.state = 'view-stats'
+        if thumby.buttonB.justPressed() and selectedCatId is not None:
+            cat = gameState.get_selected_cat()
+            gameState.update_selector_position(lastPos.x, lastPos.y)
+            selectedCatId = None
+            lastPos = Position()
+            needsUpdate = True
 
         if needsUpdate:
             render_map(gameState.level.map)
             needsUpdate = False
 
     elif gameState.state == 'unitSelect':
+        def check_house_condition():
+            global gameState
+            house = gameState.cat_is_on_house()
+            if not house:
+                return False
+            if not house.visited:
+                return True
+            if house.has_more_dialogs():
+                return True
+            return False
+
         actions = [
-            {"label": "Seize", "action": lambda: seize_action(), "condition": lambda: get_selected_cat() and get_selected_cat().position == gameState.level.seizePosition},
-            {"label": "Move", "action": lambda: move_action(), "condition": lambda: get_selected_cat() and not get_selected_cat().moved},
-            {"label": "Wait", "action": lambda: wait_action(), "condition": lambda: selectedCatId is not None and not get_selected_cat().exhausted and not get_selected_cat().enemy},
+            {"label": "Seize", "action": lambda: seize_action(), "condition": lambda: gameState.get_selected_cat() and gameState.get_selected_cat().position == gameState.level.seizePosition},
             {"label": "Fight", "action": lambda: fight_action(), "condition": lambda: can_attack()},
+            {"label": "Move", "action": lambda: move_action(), "condition": lambda: gameState.get_selected_cat() and not gameState.get_selected_cat().moved and not gameState.get_selected_cat().exhausted},
+            {"label": "Wait", "action": lambda: wait_action(), "condition": lambda: selectedCatId is not None and not gameState.get_selected_cat().exhausted and not gameState.get_selected_cat().enemy},
+            {"label": "Items", "action": lambda: gameState.get_selected_cat().open_item_menu(), "condition": lambda: selectedCatId is not None},
             {"label": "Stats", "action": lambda: stats_action(), "condition": lambda: selectedCatId is not None},
-            {"label": "End Turn", "action": lambda: end_turn_action(), "condition": lambda: True},  # Always available
+            {"label": "Shop", "action": lambda: setattr(gameState, 'state', 'shop'), "condition": lambda: gameState.cat_is_on_shop() is not None},
+            {"label": "Visit", "action": lambda: setattr(gameState, 'state', 'house-visit'), "condition": lambda: check_house_condition()},
+            {"label": "End Turn", "action": lambda: end_turn_action(), "condition": lambda: True},
         ]
 
         # Filter actions based on their conditions
-        visible_actions = [action for action in actions if action["condition"]()]
+        actions = [action for action in actions if action["condition"]()]
+        ## make another array of size 5 since we can only show 5 options at a time
+        offset = option - 4 if option >= 4 else 0
+        visible_actions = actions[0+offset:5+offset]
         thumby.display.fill(thumby.display.WHITE)
 
         # Render the list of actions
         curY = 0
         for i, action in enumerate(visible_actions):
-            selected = thumby.display.LIGHTGRAY if i == option and frame & 1 else thumby.display.BLACK
-            thumby.display.drawText(action["label"], 2, curY, selected if i == option else thumby.display.DARKGRAY)
+            selected = thumby.display.LIGHTGRAY if i + offset == option else thumby.display.BLACK
+            thumby.display.drawText(action["label"], 2, curY, selected if i + offset == option and frame & 1 else thumby.display.DARKGRAY)
             curY += 8
 
         # Handle input for navigating the list
         if thumby.buttonU.justPressed() and option > 0:
             option -= 1
-        if thumby.buttonD.justPressed() and option < len(visible_actions) - 1:
+        if thumby.buttonD.justPressed() and option < len(actions)-1:
             option += 1
 
         # Handle input for selecting an action
         if thumby.buttonA.justPressed():
-            visible_actions[option]["action"]() 
+            visible_actions[option]["action"]()
             option = 0  # Reset option after action
 
         # Handle input for canceling
         if thumby.buttonB.justPressed():
-            cat = get_selected_cat()
+            cat = gameState.get_selected_cat()
             if cat:
                 cat.set_selected(False)
                 if cat.moved and not cat.exhausted:
                     cat.moved = False
                     cat.set_position(lastPos)
-                    gameState.level.selectorPosition = Position(lastPos.x, lastPos.y)
+                    gameState.update_selector_position(lastPos.x, lastPos.y)
             selectedCatId = None
             lastPos = Position()
             gameState.state = 'map'
             option = 0
             needsUpdate = True
 
-        # Define the action functions
         def move_action():
             global gameState, needsUpdate
             gameState.state = 'map'
@@ -1044,10 +1223,10 @@ while True:
             needsUpdate = True
 
         def wait_action():
-            cat = get_selected_cat()
+            global selectedCatId, gameState, needsUpdate
+            cat = gameState.get_selected_cat()
             if cat:
                 cat.set_exhausted(True)
-            global selectedCatId, gameState, needsUpdate
             selectedCatId = None
             gameState.state = 'map'
             needsUpdate = True
@@ -1075,43 +1254,67 @@ while True:
                 gameState.load_level(level2)
             else: 
                 gameState.state = 'end'
+
+    elif gameState.state == 'item-menu':
+        cat = gameState.get_selected_cat()
+        if not cat:
+            gameState.state = 'map'
+
+        thumby.display.fill(thumby.display.WHITE)
+        curY = 0
+        for i, item in enumerate(cat.items):
+            selected = thumby.display.LIGHTGRAY if i == option and frame & 1 else thumby.display.BLACK
+            thumby.display.drawText(item.name, 2, curY, selected if i == option else thumby.display.DARKGRAY)
+            curY += 8
+
+        if thumby.buttonU.justPressed() and option > 0:
+            option -= 1
+        if thumby.buttonD.justPressed() and option < len(cat.items) - 1:
+            option += 1
+
+        if thumby.buttonA.justPressed():
+            selected_item = cat.items[option]
+            if selected_item.type == 'weapon':
+                cat.items.pop(option)
+                cat.items.insert(0, selected_item)
+            elif selected_item.type == 'consumable' and selected_item.effect and 'heal' in selected_item.effect:
+                cat.use_item(option)
+            gameState.state = 'map'
+            needsUpdate = True
+
+        if thumby.buttonB.justPressed():
+            gameState.state = 'unitSelect'
+            needsUpdate = True
     
     elif gameState.state == 'enemy-select':
-        # Get enemies in range of the selected cat
-        selected_cat = get_selected_cat()
+        selected_cat = gameState.get_selected_cat()
         enemies_in_range = []
 
         if selected_cat:
             for enemy in gameState.level.enemies:
                 dx = abs(enemy.position.x - selected_cat.position.x)
                 dy = abs(enemy.position.y - selected_cat.position.y)
-                if dx + dy <= 1:
+                if dx + dy <= selected_cat.get_weapon().range:
                     enemies_in_range.append(enemy)
-                    # If selector is on the selected cat, move to first enemy found
                     if gameState.level.selectorPosition == selected_cat.position:
                         gameState.level.selectorPosition.x = enemy.position.x
                         gameState.level.selectorPosition.y = enemy.position.y
 
-        # If no enemies in range, return to unit select
         if len(enemies_in_range) == 0:
             gameState.state = 'unitSelect'
             option = 0
         else:
-            # Navigate between enemies in range
             if thumby.buttonU.justPressed() or thumby.buttonL.justPressed():
                 option = (option - 1) % len(enemies_in_range)
-                # Move cursor to the selected enemy's position
                 gameState.level.selectorPosition.x = enemies_in_range[option].position.x
                 gameState.level.selectorPosition.y = enemies_in_range[option].position.y
                 needsUpdate = True
             elif thumby.buttonD.justPressed() or thumby.buttonR.justPressed():
                 option = (option + 1) % len(enemies_in_range)
-                # Move cursor to the selected enemy's position
                 gameState.level.selectorPosition.x = enemies_in_range[option].position.x
                 gameState.level.selectorPosition.y = enemies_in_range[option].position.y
                 needsUpdate = True
 
-            # Update viewport to follow cursor
             if gameState.level.selectorPosition.x - gameState.level.viewport.x < 1 and gameState.level.viewport.x > 0:
                 gameState.level.viewport.x -= 1
             elif gameState.level.selectorPosition.x - gameState.level.viewport.x > SCREEN_TILES_X - 2 and gameState.level.viewport.x < len(gameState.level.map)[0] - SCREEN_TILES_X:
@@ -1121,13 +1324,10 @@ while True:
             elif gameState.level.selectorPosition.y - gameState.level.viewport.y > SCREEN_TILES_Y - 2 and gameState.level.viewport.y < len(gameState.level.map) - SCREEN_TILES_Y:
                 gameState.level.viewport.y += 1
 
-            # Handle selection
             if thumby.buttonA.justPressed():
-                # Get the selected enemy and perform combat
-                selected_cat = get_selected_cat()
+                selected_cat = gameState.get_selected_cat()
                 selected_enemy = enemies_in_range[option]
                 
-                # Perform all attacks and record them
                 battle(selected_cat, selected_enemy)
                 selected_cat.set_exhausted(True)
                 selectedCatId = None
@@ -1135,63 +1335,50 @@ while True:
             elif thumby.buttonB.justPressed():
                 gameState.state = 'unitSelect'
                 option = 0
-
-            # Render the map with enemy selection overlay
             if needsUpdate:
                 render_map(gameState.level.map)
                 needsUpdate = False
     
     elif gameState.state == 'enemy-turn':
-        # loop through the enemies and move/attack
-        if frame % 10 == 1:  # Slow down enemy actions
+        if frame % 10 == 1:
             if activeEnemy:
-                print(f"Active enemy: {activeEnemy.name} at position {activeEnemy.position}.")
 
-                # Step 1: Find a target in range
                 closest_tile, target = get_attack_tile(activeEnemy)
-
                 if target is None:
                     print(f"No target in range for enemy {activeEnemy.name}.")
                     readyForBattle = False
-                    activeEnemy.set_exhausted(True)  # No target in range, skip this enemy's turn\
+                    activeEnemy.set_exhausted(True)
                     activeEnemy = None
 
-                # Attack the target if in range
                 if target and readyForBattle:
                     battle(activeEnemy, target)
                     activeEnemy.set_exhausted(True)
                     activeEnemy = None
                     needsUpdate = True
                     readyForBattle = False
-                
-                # Move towards the target if not in range
+
                 elif target and not readyForBattle:
                     if closest_tile:
                         activeEnemy.set_position(closest_tile)
-                        update_selector_position(closest_tile.x, closest_tile.y, gameState.level.map)
+                        gameState.update_selector_position(closest_tile.x, closest_tile.y)
                         needsUpdate = True
                         readyForBattle = True
 
             else:
-                # Step 4: Select the next active enemy
                 for e in gameState.level.enemies:
                     if not e.exhausted:
-                        ## Check if the enemy has any valid moves
                         mcRib = get_attack_tile(e)
                         if mcRib != (None, None):
                             activeEnemy = e
-                            update_selector_position(activeEnemy.position.x, activeEnemy.position.y, gameState.level.map)
+                            gameState.update_selector_position(activeEnemy.position.x, activeEnemy.position.y)
                             needsUpdate = True
                             break
                         else:
-                            print(f"Enemy {e.name} has no valid moves, marking as exhausted.")
                             readyForBattle = False
                             activeEnemy = None
                             e.set_exhausted(True)
 
-                # Check if all enemies are exhausted again
                 if all(e.exhausted for e in gameState.level.enemies):
-                    # All enemies exhausted, reset party and return to map
                     for p in gameState.party:
                         p.set_exhausted(False)
                         p.moved = False
@@ -1199,12 +1386,89 @@ while True:
                         e.set_exhausted(False)
                     gameState.state = 'map'
                     if (gameState.party[0]):
-                        update_selector_position(gameState.party[0].position.x, gameState.party[0].position.y, gameState.level.map)
+                        gameState.update_selector_position(gameState.party[0].position.x, gameState.party[0].position.y)
                     needsUpdate = True
 
             if needsUpdate:
                 render_map(gameState.level.map)
                 needsUpdate = False
+
+    elif gameState.state == 'shop':
+        # get the shop thats the same position as the selected cat
+        shop = gameState.cat_is_on_shop()
+        cat = gameState.get_selected_cat()
+        if len(cat.items) > 4:
+            gameState.add_dialog(Dialog(
+                lines=[
+                    "I have",
+                    "too many",
+                    "items...",
+                ],
+                currentlyTalking=cat.name,
+                left_cats=[cat],
+                right_cats=[]
+            ))
+            gameState.state = 'unitSelect'
+        xOffset = 0
+        if shop:
+            thumby.display.fill(thumby.display.WHITE)
+            for i, shopItem in enumerate(shop.inventory):
+                selected = thumby.display.LIGHTGRAY if i == option and frame & 1 else thumby.display.BLACK
+                thumby.display.drawText(f"{shopItem.item.name}{shopItem.price}", 2, xOffset, selected if i == option else thumby.display.DARKGRAY)
+                xOffset += 8
+
+            thumby.display.drawText(f"Gold: ${gameState.bank}", 2, 32, thumby.display.BLACK)
+            if thumby.buttonU.justPressed() and option > 0:
+                option -= 1
+            if thumby.buttonD.justPressed() and option < len(shop.inventory) - 1:
+                option += 1
+            if thumby.buttonA.justPressed():
+                selected_item = shop.inventory[option]
+                if gameState.bank >= selected_item.price:
+                    gameState.bank -= selected_item.price
+                    cat.items.append(selected_item)
+                    shop.inventory.pop(option)
+                    gameState.add_dialog(Dialog(
+                        lines=[
+                            f"Bought {selected_item.name}!",
+                        ],
+                        currentlyTalking=cat.name,
+                        left_cats=[cat],
+                        right_cats=[]
+                    ))
+                else:
+                    gameState.add_dialog(Dialog(
+                        lines=[
+                            "we're too",
+                            "broke bud",
+                            "...",
+                        ],
+                        currentlyTalking=cat.name,
+                        left_cats=[cat],
+                        right_cats=[]
+                    ))
+            if thumby.buttonB.justPressed():
+                cat.set_exhausted(True)
+                gameState.state = 'unitSelect'
+                option = 0
+                needsUpdate = True
+
+    elif gameState.state == 'house-visit':
+        house = gameState.cat_is_on_house()
+        selCat = gameState.get_selected_cat()
+        if not house.visited:
+            house.visit()
+            for dialog in house.dialogs:
+                gameState.add_dialog(dialog)
+                selCat.set_moved(True)
+                selCat.set_exhausted(True)
+        else:
+            for dialog in house.postVisitDialog:
+                gameState.add_dialog(dialog)
+                selCat.set_moved(True)
+                selCat.set_exhausted(True)
+                
+        gameState.state = 'unitSelect'
 
     elif gameState.state == 'end':
         thumby.display.fill(thumby.display.WHITE)
@@ -1218,7 +1482,7 @@ while True:
     
     elif gameState.state == 'view-stats':
         unit = None
-        unit = get_selected_cat()
+        unit = gameState.get_selected_cat()
         if not unit:
             for e in gameState.level.enemies:
                 if e.id == selectedCatId:
@@ -1228,7 +1492,7 @@ while True:
             thumby.display.fill(thumby.display.WHITE)
             thumby.display.drawText(f"{unit.name}", 2, 0, thumby.display.BLACK)
             thumby.display.drawText(f"LV:{unit.level}", 32, 0, thumby.display.BLACK)
-            thumby.display.drawText(f"HP:{unit.hp}/{cat.stats.max_hp}", 2, 8, thumby.display.BLACK)
+            thumby.display.drawText(f"HP:{unit.hp}/{unit.stats.max_hp}", 2, 8, thumby.display.BLACK)
             thumby.display.drawText(f"AT:{unit.stats.attack}", 2, 16, thumby.display.BLACK)
             thumby.display.drawText(f"DE:{unit.stats.defense}", 32, 16, thumby.display.BLACK)
             thumby.display.drawText(f"SP:{unit.stats.speed}", 2, 24, thumby.display.BLACK)
