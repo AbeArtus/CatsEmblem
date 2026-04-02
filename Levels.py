@@ -11,15 +11,15 @@ _add_to_party = None
 _update_bank = None
 _can_give_item = None
 _give_item = None
-_get_selected_cat = None
+_get_cat_at_pos = None
 
-def set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_selected_cat):
-	global _add_to_party, _update_bank, _can_give_item, _give_item, _get_selected_cat
+def set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_cat_at_pos):
+	global _add_to_party, _update_bank, _can_give_item, _give_item, _get_cat_at_pos
 	_add_to_party = add_to_party
 	_update_bank = update_bank
 	_can_give_item = can_give_item
 	_give_item = give_item
-	_get_selected_cat = get_selected_cat
+	_get_cat_at_pos = get_cat_at_pos
 
 # Use the callbacks in your code
 def add_party_member(cat):
@@ -39,9 +39,9 @@ def give_item(position: Position, item) -> bool:
 	if _give_item:
 		_give_item(position, item)
 
-def get_selected_cat():
-	if _get_selected_cat:
-		return _get_selected_cat()
+def get_cat_at_position(position: Position):
+	if _get_cat_at_pos:
+		return _get_cat_at_pos(position)
 	return None
 
 # --- UNITS ---
@@ -457,14 +457,14 @@ level1 = Level(
 			position = Position(6, 11),
 			dialogs=[Dialog(
 				lines=["save our","village,","take 50g"],
-				left_cats=[cat],
-				right_cats=[tac],
-				currentlyTalking='cat',
+				left_cats=[get_cat_at_position(Position(6, 11))],
+				right_cats=[npc],
+				currentlyTalking='npc',
 				lambda_after=lambda: modify_bank(50)
 			)],
 			postVisitDialog=[Dialog(
 				lines=["Thats all","we got"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(6, 11))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			)]
@@ -515,13 +515,13 @@ level2 = Level(
 			position=Position(2, 1),
 			preVistedDialogs=[Dialog(
 				lines=["Save us","and I'll", "owe you"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(2, 1))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			)],
 			dialogs=[Dialog(
 				lines=["Thank you" ,"take this."],
-				lleft_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(2, 1))],
 				right_cats=[npc],
 				currentlyTalking='npc',
 				lambda_after=lambda: give_item(Position(2,1), itemDict['MystPot'])
@@ -533,13 +533,13 @@ level2 = Level(
 			dialogs=[
 			Dialog(
 				lines=["Trees,","grass,","and house"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(4, 1))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			),
 			Dialog(
 				lines=["Give", "Extra", "Avoid"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(4, 1))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			)]
@@ -549,13 +549,13 @@ level2 = Level(
 			dialogs=[
 				Dialog(
 					lines=["I hear","some","items..."],
-					left_cats=[get_selected_cat()],
+					left_cats=[get_cat_at_position(Position(12, 13))],
 					right_cats=[npc],
 					currentlyTalking='npc'
 				),
 				Dialog(
 					lines=["promote", "trained", "pupils"],
-					left_cats=[get_selected_cat()],
+					left_cats=[get_cat_at_position(Position(12, 13))],
 					right_cats=[npc],
 					currentlyTalking='npc'
 				)
@@ -583,39 +583,39 @@ level3 = Level(
 			position=Position(17, 8),
 			preVistedDialogs=[Dialog(
 				lines=["There is","a legendary","cat..."],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			),
 			Dialog(
 				lines=["that","possesses", "the dna.."],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='cat'
 			),
 			Dialog(
 				lines=["of all","species.", "Its name.." ],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='cat'
 			),
 			Dialog(
 				lines=["is mew.", "cat must", "save him"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='cat'
 			)],
-			visitCondition=lambda: get_selected_cat() is not None and get_selected_cat().name == 'mew' and can_give_item(Position(17,8)),
+			visitCondition=lambda: get_cat_at_position(Position(17, 8)) is not None and get_cat_at_position(Position(17, 8)).name == 'mew' and can_give_item(Position(17,8)),
 			dialogs=[
 				Dialog(
 					lines=["They","beileved","me huh..."],
-					left_cats=[get_selected_cat()],
+					left_cats=[get_cat_at_position(Position(17, 8))],
 					right_cats=[npc],
 					currentlyTalking='npc',
 				),
 				Dialog(
 					lines=["Take after","my steps","will ya"],
-					left_cats=[get_selected_cat()],
+					left_cats=[get_cat_at_position(Position(17, 8))],
 					right_cats=[npc],
 					currentlyTalking='npc',
 					lambda_after=lambda: (give_item(Position(17,8), itemDict['MstQll']))
@@ -623,7 +623,7 @@ level3 = Level(
 			],
 			postVisitDialog=[Dialog(
 				lines=["Don't die", "live"],
-				left_cats=[get_selected_cat()],	
+				left_cats=[get_cat_at_position(Position(17, 8))],	
 				right_cats=[npc],
 				currentlyTalking='npc'
 			)]
@@ -652,7 +652,7 @@ level3 = Level(
 			],
 			nameOne='cat',
 			nameTwo='mew',
-			condition=lambda: mew in level3.enemies and get_selected_cat() is not None and get_selected_cat().name == 'cat'
+			condition=lambda: mew in level3.enemies and get_cat_at_position(Position(17, 8)) is not None and get_cat_at_position(Position(17, 8)).name == 'cat'
 		)
 	]
 )
@@ -674,21 +674,21 @@ level4 = Level(
 			position=Position(0, 0),
 			preVistedDialogs=[Dialog(
 				lines=["muggle,","freaking", "nerd"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			)],
-			visitCondition=lambda: get_selected_cat() is not None and get_selected_cat().classType == 'wizard' and can_give_item(Position(0,0)),
+			visitCondition=lambda: get_cat_at_position(Position(17, 8)) is not None and get_cat_at_position(Position(17, 8)).classType == 'wizard' and can_give_item(Position(0,0)),
 			dialogs=[Dialog(
 				lines=["Oh,","a wizard!"],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='npc',
 				lambda_after=lambda: give_item(Position(0,0), itemDict['LghtngTm'])
 			)],
 			postVisitDialog=[Dialog(
 				lines=["Use it","wisely."],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='npc'
 			)]
@@ -697,7 +697,7 @@ level4 = Level(
 			position=Position(1, 0),
 			dialogs=[Dialog(
 				lines=["This place","is dangerous."],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='cat'
 			)],
@@ -706,7 +706,7 @@ level4 = Level(
 			position=Position(7, 13),
 			dialogs=[Dialog(
 				lines=["Be careful","out there."],
-				left_cats=[get_selected_cat()],
+				left_cats=[get_cat_at_position(Position(17, 8))],
 				right_cats=[npc],
 				currentlyTalking='cat'
 			)],

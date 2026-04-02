@@ -250,6 +250,9 @@ class GameState:
         elif self.level.number == 2:
             self.load_level(fetch_level(3))
             self.save_game()
+        elif self.level.number == 3:
+            self.load_level(fetch_level(4))
+            self.save_game()
         else:
             self.state = 'gameover'
 

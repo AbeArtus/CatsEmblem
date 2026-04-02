@@ -61,11 +61,13 @@ def can_give_item(position: Position):
             return True
     return False
 
-def get_selected_cat():
-    return gameState.get_selected_cat()
+def get_cat_at_pos(position: Position):
+    for p in gameState.party:
+        if p.position.__eq__(position):
+            return p
 
 # Pass the setter functions to Levels
-set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_selected_cat)
+set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_cat_at_pos)
 
 selector_sprite= thumby.Sprite(10, 10, (bytearray([120,254,254,255,255,255,255,254,254,120,0,1,1,3,3,3,3,1,1,0]), bytearray([204,0,1,1,0,0,1,1,0,204,0,0,2,2,0,0,2,2,0,0])), 32, 16, key=1)
 catsCave= bytearray([1,0,192,224,225,199,7,7,7,7,199,225,224,192,0,1,0,0,0,1,1,240,248,248,248,248,240,1,1,0,0,0])
@@ -457,7 +459,7 @@ while True:
             clone.x = xOffset
             clone.y = yOffset
             thumby.display.drawSprite(clone)
-            if cat.name == dialog.currentlyTalking:
+            if cat and cat.name == dialog.currentlyTalking:
                 thumby.display.drawLine(xOffset + 3, yOffset +12, xOffset + 5, yOffset + 10, thumby.display.BLACK)
                 thumby.display.drawLine(xOffset + 5, yOffset + 10, xOffset + 7, yOffset + 12, thumby.display.BLACK)
                 thumby.display.drawLine(xOffset + 3, yOffset + 13, xOffset + 8,  yOffset + 13, thumby.display.WHITE)
