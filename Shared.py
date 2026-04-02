@@ -66,12 +66,12 @@ class Stats:
 class GrowthRates:
     def __init__(
             self,
-            attack: int=50,
-            defense: int=50,
-            max_hp: int=50,
-            speed: int=50,
-            luck: int=50,
-            range: int=50
+            attack: int=40,
+            defense: int=40,
+            max_hp: int=60,
+            speed: int=60,
+            luck: int=30,
+            range: int=20
         ):
         self.attack = attack
         self.defense = defense
@@ -168,7 +168,7 @@ class Cat:
             growthRates: GrowthRates=GrowthRates(),
             enemy: bool=False,
             level: int=1,
-            exp: int=None,
+            exp: int=0,
             next_level_exp: int=10,
             aiType: str='stand' or 'searchAndDestroy',
             items: list[Item]=[],
@@ -186,7 +186,7 @@ class Cat:
         self.growthRates: GrowthRates = growthRates if growthRates else GrowthRates() 
         self.enemy: bool = enemy
         self.hp: int = self.stats.max_hp  # Initialize HP to max_hp
-        self.exp: int = exp if exp is not None else 10**(level - 1)
+        self.exp: int = exp
         self.moved = False
         self.level: int = level
         self.next_level_exp: int = next_level_exp
@@ -194,7 +194,6 @@ class Cat:
         self.items: list[Item] = items[:4]  # Limit inventory to 4 items
         self.max_items = 4
         self.classType: str = classType
-        self.classSprite: thumby.Sprite = self.getClassSprite(self.classType, self.enemy)
         self.weaponExp: WeaponExp = weaponExp if weaponExp else WeaponExp()
 
     def save_state(self):
@@ -223,25 +222,25 @@ class Cat:
         ])
         thumbySaveData.saveData.setItem(f"{self.name}_items", [item.name for item in self.items])
 
-    def getClassSprite(classType: str, enemy: bool=False, position: Position=Position(0,0)):
-        if enemy:
-            if classType == 'wizard':
+    def getClassSprite(self, position: Position=Position(0,0)):
+        if self.enemy:
+            if self.classType == 'wizard':
                 pigHood = (bytearray([255, 231, 208, 140, 141, 141, 204, 224]), bytearray([0, 0, 16, 0, 0, 0, 0, 0]))
                 return thumby.Sprite(8, 8, pigHood , position.x, position.y, key=1)
-            if classType == 'sniper':
+            if self.classType == 'sniper':
                 pigArrowQuill =(bytearray([255, 135, 123, 255, 255, 255, 255, 255]), bytearray([32, 0, 32, 0, 0, 0, 0, 0]))
                 return thumby.Sprite(8, 8, pigArrowQuill , position.x, position.y, key=1)
-            if classType == 'warrior':
+            if self.classType == 'warrior':
                 pigArmor = (bytearray([207, 175, 143, 159, 159, 159, 255, 255]), bytearray([0, 32, 0, 0, 0, 0, 0, 0]))
                 return thumby.Sprite(8, 8, pigArmor , position.x, position.y, key=1)
         else:
-            if classType == 'wizard':   
+            if self.classType == 'wizard':   
                 catMageHood = (bytearray([255, 255, 231, 193, 194, 206, 206, 238]), bytearray([0, 0, 24, 62, 63, 49, 49, 17]))
                 return thumby.Sprite(8, 8, catMageHood , position.x, position.y, key=1)
-            if classType == 'sniper':
+            if self.classType == 'sniper':
                 catArrowQuill = (bytearray([255, 135, 123, 255, 255, 255, 255, 255]), bytearray([32, 120, 164, 0, 0, 0, 0, 0]))
                 return thumby.Sprite(8, 8, catArrowQuill , position.x, position.y, key=1)
-            if classType == 'warrior':
+            if self.classType == 'warrior':
                 catArmor = (bytearray([255, 207, 143, 159, 191, 159, 255, 255]), bytearray([0, 48, 112, 112, 96, 96, 0, 0]))
                 return thumby.Sprite(8, 8, catArmor , position.x, position.y, key=1)
             else:
@@ -274,9 +273,6 @@ class Cat:
     def set_sprite_position(self, position):
         self.sprite.x = position.x
         self.sprite.y = position.y
-        if self.classSprite:
-            self.classSprite.x = position.x
-            self.classSprite.y = position.y
     
     def set_hp(self, new_hp):
         self.hp = min(new_hp, self.stats.max_hp)
@@ -286,10 +282,10 @@ class Cat:
         nextFrame = (curFrame + 1) % self.sprite.frameCount
         self.sprite.setFrame(nextFrame)
 
-    def add_exp(self, amount):
+    def add_exp(self, amount, addDialog):
         self.exp += amount
         if self.exp >= self.next_level_exp:
-            self.level_up()
+            self.level_up(addDialog)
 
     def get_weapon(self):
         for item in self.items:
@@ -297,20 +293,29 @@ class Cat:
                 return item
         return Item(name="Fists", item_type="weapon", attack=0, accuracy=90, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'])
 
-    def level_up(self):
+    def level_up(self, addDialog: callable):
         self.level += 1
         self.next_level_exp += int(self.next_level_exp * 1.5)
 
         RN = random.randint(1, 100)
         CF = random.randint(1, 100)
+
+        if not self.enemy:
+            addDialog([f"{self.name} level","up to", f"{self.level}"], self)
         for stat in ['attack', 'defense', 'max_hp', 'speed', 'luck', 'range']:
             RN = (RN + CF) % 100
             CF = (CF + RN) % 100
+            added = 0
             if RN <= getattr(self.growthRates, stat):
                 setattr(self.stats, stat, getattr(self.stats, stat) + 1)
+                added += 1
                 if CF < (getattr(self.growthRates, stat) + self.stats.luck):
                     setattr(self.stats, stat, getattr(self.stats, stat) + 1)
-
+                    added += 1
+            if added > 0 and not self.enemy:
+                currentValue = getattr(self.stats, stat)
+                addDialog([f"{stat} up",f"from {currentValue - added}", f"to {currentValue}!"], self)
+    
     def can_move(self):
         return not self.exhausted and not self.moved
 
@@ -335,7 +340,6 @@ class Cat:
             self.stats.luck += 1
             self.weaponExp.add_weapons(['lightning', 'water', 'earth'])
 
-
 class Dialog:
     def __init__(
             self,
@@ -355,16 +359,26 @@ class House:
     def __init__(
             self,
             position: Position,
+            preVistedDialogs: list[Dialog]=[],
             dialogs: list[Dialog]=[],
-            postVisitDialog: list[Dialog]=[]
+            postVisitDialog: list[Dialog]=[],
+            visitCondition: callable=None
         ):
         self.position = position
         self.dialogs = dialogs
+        self.preVistedDialogs = preVistedDialogs
         self.postVisitDialog = postVisitDialog
+        defaultVisitCondition = lambda: True
+        self.visitCondition = visitCondition if visitCondition else defaultVisitCondition
         self.visited = False
     
     def visit(self):
         self.visited = True
+
+    def can_visit(self):
+        if self.visitCondition:
+            return self.visitCondition()
+        return True
 
     def has_more_dialogs(self):
         if self.visited:
@@ -426,4 +440,3 @@ itemDict = {
     "MstMeal": mysticMeal,
     "MstQll": mysticQuill
 }
-

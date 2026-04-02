@@ -1,8 +1,9 @@
 from sys import path as syspath
+import time
 
 syspath.insert(0, '/Games/CatsEmblem')
 from Shared import Cat, Dialog, Position, Shop, Stats, WeaponExp, classEnum, itemDict
-from Levels import Level, cat_sprite, level1, level2, cat
+from Levels import Level, cat_sprite, fetch_level, cat, canWalkOn, tileEncumberence
 import thumbyGrayscale as thumby
 import thumbySaves as thumbySaveData
 thumbySaveData.saveData.setName("CatsEmblem")
@@ -90,15 +91,15 @@ class Menu:
                 self.leave_action()
 
     def render(self):
-        thumby.display.fill(thumby.display.WHITE)
+        thumby.display.fill(thumby.display.BLACK)
         if self.title:
-            thumby.display.drawText(self.title(), 2, 0, thumby.display.DARKGRAY)
+            thumby.display.drawText(self.title(), 2, 0, thumby.display.LIGHTGRAY)
 
         visible_options, offset = self.get_visible_options()
         for i, option in enumerate(visible_options):
-            selected = thumby.display.BLACK if i + offset == self.option_index else thumby.display.LIGHTGRAY
+            selected = thumby.display.WHITE if i + offset == self.option_index else thumby.display.DARKGRAY
             if i + offset == self.option_index:
-                thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.BLACK)
+                thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.WHITE)
             thumby.display.drawText(option["label"], 2, 8 + i * 8, selected)
 
 class GameState:
@@ -113,6 +114,7 @@ class GameState:
         self.current_turn: str = 'player'
         self.selectedCatId: str | None = None
         self.load_level(level)
+        self.cached_domain = None 
         self.combat_log = []
         self.dialog: list[Dialog] = []
         self.state = state
@@ -130,13 +132,23 @@ class GameState:
 
     def load_game(self):
         """Load the saved game state from persistent storage."""
+        print("Loading game state...")
         self.bank = thumbySaveData.saveData.getItem("gameState-bank")
+        print(f"Loaded bank: {self.bank}")
+        
         party_names: list[str] = thumbySaveData.saveData.getItem("gameState-party")
+        print(f"Loaded party names: {party_names}")
+        
         party = []
-        for i, cat_name in enumerate(party_names):
+        for cat_name in party_names:
+            print(f"Loading cat: {cat_name}")
             cat_stats = thumbySaveData.saveData.getItem(f"{cat_name}_stats")
+            print(f"Loaded stats for {cat_name}: {cat_stats}")
+            
             cat_items_names = thumbySaveData.saveData.getItem(f"{cat_name}_items")
-            if len(cat_stats) == 11:
+            print(f"Loaded items for {cat_name}: {cat_items_names}")
+            
+            if len(cat_stats) == 21:
                 stats = Stats(
                     attack=cat_stats[0],
                     defense=cat_stats[1],
@@ -145,12 +157,25 @@ class GameState:
                     luck=cat_stats[4],
                     range=cat_stats[5],
                 )
+                print(f"Stats for {cat_name}: {stats}")
+                
                 level = cat_stats[6]
                 exp = cat_stats[7]
                 next_level_exp = cat_stats[8]
                 position = Position(cat_stats[9], cat_stats[10])
+                print(f"Level: {level}, EXP: {exp}, Next Level EXP: {next_level_exp}, Position: {position}")
+                
                 items = [itemDict[item_name] for item_name in cat_items_names if item_name in itemDict]
-                classType = next((key for key, value in classEnum.items() if value == cat_stats[11]), 'pupil')
+                print(f"Items for {cat_name}: {items}")
+                
+                print(f"Class ID for {cat_name}: {cat_stats[11]}")
+                classType = 'pupil'
+                for key, value in classEnum.items():
+                    if value == cat_stats[11]:
+                        classType = key
+                        break
+                print(f"Class type for {cat_name}: {classType}")
+                
                 weaponExp = WeaponExp(
                     sword=cat_stats[12],
                     repeater=cat_stats[13],
@@ -162,6 +187,8 @@ class GameState:
                     mace=cat_stats[19],
                     spear=cat_stats[20]
                 )
+                print(f"Weapon experience for {cat_name}: {weaponExp}")
+                
                 loadedCat = Cat(
                     sprite=cat_sprite(),
                     position=position,
@@ -174,8 +201,17 @@ class GameState:
                     classType=classType,
                     weaponExp=weaponExp
                 )
+                print(f"Loaded cat: {loadedCat}")
                 party.append(loadedCat)
-            self.party = party
+        
+        self.party = party
+        print(f"Final party: {self.party}")
+        
+        level_number = thumbySaveData.saveData.getItem("gameState-level-number")
+        print(f"Loaded level number: {level_number}")
+
+        nextLevel = fetch_level(level_number)
+        self.load_level(nextLevel)
 
     def has_saved_game(self):
         """Check if a saved game exists."""
@@ -205,11 +241,15 @@ class GameState:
 
     def start_game(self):
         self.party = [cat]
-        self.load_level(level1)
+        self.load_level(fetch_level(1))
 
     def load_next_level(self):
         if self.level.number == 1:
-            self.load_level(level2)
+            self.load_level(fetch_level(2))
+            self.save_game()
+        elif self.level.number == 2:
+            self.load_level(fetch_level(3))
+            self.save_game()
         else:
             self.state = 'gameover'
 
@@ -241,6 +281,7 @@ class GameState:
                 print("Cat selected state after unselect:", self.lastPos.x, self.lastPos.y)
                 selCat.position = self.lastPos.copy()
                 GameState.update_selector_position(self, self.lastPos.x, self.lastPos.y)
+        self.cached_domain = None
         self.selectedCatId = None
         self.lastPos = Position()
 
@@ -250,12 +291,52 @@ class GameState:
                 return c
         return None
     
+    def find_valid_positions(self, cat: Cat, range: int):
+        startTime = time.ticks_ms()
+
+        def is_walkable(position):
+            if not (0 <= position.x < len(self.level.map[0]) and 0 <= position.y < len(self.level.map)):
+                return False
+            tile = self.level.map[position.y][position.x]
+            return tile in canWalkOn and canWalkOn[tile]
+
+        visited = set()
+        queue = [(cat.position, range)]
+
+        while queue:
+            current_pos, remaining_range = queue.pop(0)
+
+            if remaining_range < 0 or current_pos in visited:
+                continue
+
+            if not is_walkable(current_pos) or (self.is_occupied(current_pos) and current_pos != cat.position):
+                continue
+
+            visited.add(current_pos)
+
+            if remaining_range > 0:
+                neighbors = [
+                    Position(current_pos.x + 1, current_pos.y),
+                    Position(current_pos.x - 1, current_pos.y),
+                    Position(current_pos.x, current_pos.y + 1),
+                    Position(current_pos.x, current_pos.y - 1),
+                ]
+                for neighbor in neighbors:
+                    if neighbor not in visited and is_walkable(neighbor):
+                        encumbrance = tileEncumberence.get(self.level.map[neighbor.y][neighbor.x], 1)
+                        queue.append((neighbor, remaining_range - encumbrance))
+
+        print("find_valid_positions took", time.ticks_ms() - startTime, "seconds")
+        return list(visited)
+
     def update_selector_position(self, x, y):
+        startTime = time.ticks_ms()
         new_x = max(0, min(len(self.level.map[0]) - 1, x))
         new_y = max(0, min(len(self.level.map) - 1, y))
         selCat = self.get_selected_cat()
-        if selCat:
-            if abs(new_x - selCat.position.x) + abs(new_y - selCat.position.y) > selCat.stats.range:
+        if selCat and self.cached_domain:
+            if Position(new_x, new_y) not in self.cached_domain:
+                print("Position not in domain:", new_x, new_y)
                 return
 
         self.level.selectorPosition.x = new_x
@@ -269,6 +350,16 @@ class GameState:
 
         self.level.viewport.x = viewport_x
         self.level.viewport.y = viewport_y
+        print("Selector updated in", time.ticks_ms() - startTime, "seconds")
+
+    def units_in_range(self, position: Position, range_distance: int):
+        units: list[Cat] = []
+        for unit in self.party + self.level.enemies:
+            dx = abs(unit.position.x - position.x)
+            dy = abs(unit.position.y - position.y)
+            if dx + dy <= range_distance:
+                units.append(unit)
+        return units
 
     def cat_is_on_shop(self):
         lateBirthdayCelebration = self.get_selected_cat()
@@ -356,28 +447,23 @@ class GameState:
 
             for i, item in enumerate(selectedCat.items):
                 def open_item_action_menu(index=i):
+                    if selectedCat.exhausted and item.type in ['consumable', 'promote']:
+                        return lambda: None
                     def item_action_menu():
                         item = selectedCat.items[index]
                         item_action_options = []
 
-                        if item.effect and item.type == 'consumable':
+                        if item.effect and item.type == 'consumable' and not selectedCat.exhausted:
                             def use_item_action():
                                 def use_item():
                                     selectedCat.use_item(index)
-                                    self.add_dialog(Dialog(
-                                        left_cats=[selectedCat],
-                                        currentlyTalking=selectedCat.name,
-                                        lines=[f"*eats {item.name}*"],
-                                    ))
-                                    self.state = 'map'
-                                    selectedCat.set_exhausted(True)
-                                    self.selectedCatId = None
+                                    exit_menu()
                                 return use_item()
 
                             item_action_options.append({
                                 "label": "Use",
-                                "action": use_item_action(),
-                                "condition": lambda: True
+                                "action": use_item_action,
+                                "condition": lambda: not selectedCat.exhausted
                             })
                         if item.type == 'weapon' and index != 0:
                             def equip_item_action(item_index=index):
@@ -404,7 +490,7 @@ class GameState:
                                     self.add_dialog(Dialog(
                                         left_cats=[selectedCat],
                                         currentlyTalking=selectedCat.name,
-                                        lines=[f"*promoted to {promotion_class}*"],
+                                        lines=["*promoted to", f"{promotion_class}*"],
                                     ))
                                     self.state = 'map'
                                     selectedCat.set_exhausted(True)
@@ -414,7 +500,7 @@ class GameState:
                             item_action_options.append({
                                 "label": "Promote",
                                 "action": promote_action(),
-                                "condition": lambda: True
+                                "condition": lambda: not selectedCat.exhausted
                             })
 
                         neighbors = [
@@ -500,7 +586,7 @@ class GameState:
                             item_action_options.append({
                                 "label": "Trade",
                                 "action": trade_item_action(index),
-                                "condition": lambda: True
+                                "condition": lambda: not selectedCat.exhausted
                             })
 
                         optionIndexCopy = option_index
@@ -508,7 +594,7 @@ class GameState:
                             self.enter_menu(menu=Menu(
                                 options=item_action_options,
                                 title=lambda: f"{item.name} Actions",
-                                leave_action=lambda: self.open_item_menu()
+                                leave_action=lambda: self.open_item_menu(index)
                             ))
 
                     return item_action_menu
@@ -582,7 +668,10 @@ class GameState:
         def visit_house():
             house = self.cat_is_on_house()
             selCat = self.get_selected_cat()
-            if not house.visited:
+            if not house.can_visit():
+                for dialog in house.preVistedDialogs:
+                    self.add_dialog(dialog)
+            elif not house.visited:
                 house.visit()
                 for dialog in house.dialogs:
                     self.add_dialog(dialog)
@@ -623,6 +712,37 @@ class GameState:
                     cat.set_moved(True)
                     cat.set_exhausted(True)
 
+        def can_talk():
+            for conversation in self.level.conversations:       
+                if not selectedCat:
+                    return False
+                conversationNames = [conversation.nameOne, conversation.nameTwo]
+                unitsInRange = self.units_in_range(selectedCat.position, 1)
+                for u in unitsInRange:
+                    print(u.name, "is in range")
+                if len(unitsInRange) == 0:
+                    return False
+                firstFound = any(conversationNames[0] == unit.name for unit in unitsInRange)
+                print("first Found", firstFound)
+                secondFound = any(conversationNames[1] == unit.name for unit in unitsInRange)
+                print("second found", secondFound)
+                if firstFound and secondFound:
+                    return True
+            return False
+        
+        def talk_action():
+            for conversation in self.level.conversations:
+                conversationNames = [conversation.nameOne, conversation.nameTwo]
+                unitsInRange = self.units_in_range(self.level.selectorPosition, 1)
+                firstFound = [conversationNames[0] == unit.name for unit in unitsInRange]
+                secondFound = [conversationNames[1] == unit.name for unit in unitsInRange]
+                if firstFound and secondFound:
+                    for dialog in conversation.dialogs:
+                        self.add_dialog(dialog)
+                    # remove conversation so it can't be triggered again
+                    self.level.conversations.remove(conversation)
+                    break
+
         menu_title = f"{selectedCat.name} hp:{selectedCat.hp}" if selectedCat else "Unit Menu"
         self.enter_menu(menu = Menu(
             options=[
@@ -645,6 +765,11 @@ class GameState:
                     "label": "Wait",
                     "action": wait_action,
                     "condition": lambda: self.get_selected_cat() is not None and not self.get_selected_cat().exhausted
+                },
+                {
+                    "label": "Talk",
+                    "action": talk_action,
+                    "condition": can_talk
                 },
                 {
                     "label": "Visit",
