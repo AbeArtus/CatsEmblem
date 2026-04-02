@@ -295,13 +295,13 @@ class Cat:
 
     def level_up(self, addDialog: callable):
         self.level += 1
-        self.next_level_exp += int(self.next_level_exp * 1.5)
+        self.next_level_exp += 20 + (self.level * 5)  # Increase next level exp requirement
 
         RN = random.randint(1, 100)
         CF = random.randint(1, 100)
 
         if not self.enemy:
-            addDialog([f"{self.name} level","up to", f"{self.level}"], self)
+            addDialog([f"{self.name} level up",f"to {self.level}"], self)
         for stat in ['attack', 'defense', 'max_hp', 'speed', 'luck', 'range']:
             RN = (RN + CF) % 100
             CF = (CF + RN) % 100
@@ -309,7 +309,7 @@ class Cat:
             if RN <= getattr(self.growthRates, stat):
                 setattr(self.stats, stat, getattr(self.stats, stat) + 1)
                 added += 1
-                if CF < (getattr(self.growthRates, stat) + self.stats.luck):
+                if CF < (getattr(self.growthRates, stat)):
                     setattr(self.stats, stat, getattr(self.stats, stat) + 1)
                     added += 1
             if added > 0 and not self.enemy:

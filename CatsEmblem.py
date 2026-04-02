@@ -276,10 +276,7 @@ def handle_movement():
                     break
             canUpdate = isWalkable or gameState.selectedCatId is None
             gameState.update_selector_position(x + (dx if canUpdate else 0), y + (dy if canUpdate else 0))
-            print("Handle movement time:", time.ticks_ms() - startTime)
             return True
-
-    print("Handle movement time:", time.ticks_ms() - startTime)
     return False
 
 def render_map(level):
@@ -385,7 +382,6 @@ while True:
     if gameState.state == 'map' or gameState.state == 'enemy-turn' or gameState.state == 'enemy-select':
         render_map(gameState.level.map)
     renderEndTime = time.ticks_ms()
-    print("Render time:", renderEndTime - renderStartTime)
 
     if len(gameState.party) == 0 and gameState.level != None:
         gameState.state = 'gameOver'
@@ -424,7 +420,6 @@ while True:
             thumby.display.drawText(f"HP:{attackerHealth}", 2, 32, thumby.display.BLACK)
             thumby.display.drawText(log.defender_name, 40, 24, thumby.display.DARKGRAY)
             thumby.display.drawText(f"HP:{defenderHealth}", 40, 32, thumby.display.DARKGRAY)
-            print(len(str(log.damage)))
             adjment = (len(str(log.damage)) + 1) * 6
             if beep: thumby.display.drawText(f"-{log.damage}", 71 - adjment, 2, thumby.display.LIGHTGRAY)
             # render the cats
@@ -544,7 +539,6 @@ while True:
                         gameState.state = 'view-stats'
         if thumby.buttonB.justPressed() and gameState.selectedCatId is not None:
             gameState.cancel_cat_select()
-        print("Map time:", time.ticks_ms() - mapTimeStart)
 
     elif gameState.state == 'menu':
         if gameState.menu:
@@ -675,4 +669,3 @@ while True:
     thumby.display.update()
     endLoopTime = time.ticks_ms()
     loopDuration = endLoopTime - startLoopTime
-    # print("loop duration:", loopDuration)

@@ -329,7 +329,6 @@ class GameState:
                         encumbrance = tileEncumberence.get(self.level.map[neighbor.y][neighbor.x], 1)
                         queue.append((neighbor, remaining_range - encumbrance))
 
-        print("find_valid_positions took", time.ticks_ms() - startTime, "seconds")
         return list(visited)
 
     def update_selector_position(self, x, y):
@@ -353,7 +352,6 @@ class GameState:
 
         self.level.viewport.x = viewport_x
         self.level.viewport.y = viewport_y
-        print("Selector updated in", time.ticks_ms() - startTime, "seconds")
 
     def units_in_range(self, position: Position, range_distance: int):
         units: list[Cat] = []
@@ -721,14 +719,10 @@ class GameState:
                     return False
                 conversationNames = [conversation.nameOne, conversation.nameTwo]
                 unitsInRange = self.units_in_range(selectedCat.position, 1)
-                for u in unitsInRange:
-                    print(u.name, "is in range")
                 if len(unitsInRange) == 0:
                     return False
                 firstFound = any(conversationNames[0] == unit.name for unit in unitsInRange)
-                print("first Found", firstFound)
                 secondFound = any(conversationNames[1] == unit.name for unit in unitsInRange)
-                print("second found", secondFound)
                 if firstFound and secondFound:
                     return True
             return False
