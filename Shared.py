@@ -4,12 +4,9 @@ def checkClearMem(message: str = ''):
     gc.collect()
     print("Free memory (Shared.py):", gc.mem_free(), message)
 
-import random
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 import thumbyGrayscale as thumby
-import thumbySaves as thumbySaveData
-thumbySaveData.saveData.setName("CatsEmblem")
 
 classEnum = {
     'pupil': 0,
@@ -29,6 +26,21 @@ weaponAdvantages = {
     'water': 'earth',
     'earth': 'lightning'
 }
+
+_class_overlay_data = None
+
+def get_class_overlay_data():
+    global _class_overlay_data
+    if _class_overlay_data is None:
+        _class_overlay_data = {
+            (True, 'wizard'): (bytearray([255, 231, 208, 140, 141, 141, 204, 224]), bytearray([0, 0, 16, 0, 0, 0, 0, 0])),
+            (True, 'sniper'): (bytearray([255, 135, 123, 255, 255, 255, 255, 255]), bytearray([32, 0, 32, 0, 0, 0, 0, 0])),
+            (True, 'warrior'): (bytearray([207, 175, 143, 159, 159, 159, 255, 255]), bytearray([0, 32, 0, 0, 0, 0, 0, 0])),
+            (False, 'wizard'): (bytearray([255, 255, 231, 193, 194, 206, 206, 238]), bytearray([0, 0, 24, 62, 63, 49, 49, 17])),
+            (False, 'sniper'): (bytearray([255, 135, 123, 255, 255, 255, 255, 255]), bytearray([32, 120, 164, 0, 0, 0, 0, 0])),
+            (False, 'warrior'): (bytearray([255, 207, 143, 159, 191, 159, 255, 255]), bytearray([0, 48, 112, 112, 96, 96, 0, 0])),
+        }
+    return _class_overlay_data
 
 classAdvantages = {
     'warrior': ['wizard', 'pupil'],
@@ -87,7 +99,7 @@ class GrowthRates:
         self.range = range
 
 class Item:
-    def __init__(self, name: str, item_type: str, effect=None, attack=0, accuracy=0, range=1, crit=0, allowedClasses=['pupil'], weaponType: str=None):
+    def __init__(self, name: str, item_type: str, effect=None, attack=0, accuracy=0, range=1, crit=0, allowedClasses: list[str] | None = None, weaponType: str=None):
         self.name = name
         self.type = item_type
         self.effect = effect
@@ -95,7 +107,7 @@ class Item:
         self.accuracy = accuracy
         self.range = range
         self.crit = crit
-        self.allowedClasses = allowedClasses
+        self.allowedClasses = allowedClasses if allowedClasses else ['pupil']
         self.weaponType: str = weaponType
 
     def can_use(self, classType: str):
@@ -105,6 +117,11 @@ class Item:
         if self.weaponType in weaponAdvantages:
             return weaponAdvantages[self.weaponType] == other_weapon_type
         return False
+
+    def get_range(self):
+        if self.range == 12:
+            return [1,2]
+        return [self.range]
 
 class WeaponExp:
     def __init__(
@@ -137,18 +154,17 @@ class WeaponExp:
     def get_weapon_attack_bonus(self, weapon_type: str) -> int:
         exp = self.get_weapon_exp(weapon_type)
         if exp == -1:
-            return 1
+            return 0
         elif exp < 10:
-            return 1
-        elif exp < 25:
-            return 1.05
-        elif exp < 35:
-            return 1.10
+            return 0
         elif exp < 50:
-            return 1.15
+            return 0.05
+        elif exp < 100:
+            return 0.10
+        elif exp < 200:
+            return 0.15
         else:
-            return 1.20
-        
+            return 0.20
     def increase_exp(self, weapon_type: str, amount: int = 1):
         if hasattr(self, weapon_type):
             current_exp = getattr(self, weapon_type)
@@ -169,33 +185,98 @@ def growthRate(name: str):
     if name == 'bao': return GrowthRates(attack=40, defense=60, max_hp=50, speed=60, luck=45, range=40)
     return GrowthRates(attack=40, defense=40, max_hp=60, speed=60, luck=30, range=20)
 
+class Option:
+    def __init__(self, label: str, action: callable, condition: callable = lambda: True):
+        self.label: str = label
+        self.action: callable = action
+        self.condition: callable = condition
+
+class Menu:
+    def __init__(self, options: list[list[Option]], title: list[function[str]] | None = None, option_index: int = 0, menu_index: int = 0, leave_action: function | None = None):
+        self.options = options
+        self.title = title if title else [lambda: ""]
+        self.option_index = option_index
+        self.menu_index = menu_index
+        self.leave_action = leave_action
+
+    def get_options(self):
+        return [opt for opt in self.options[self.menu_index] if opt.condition()]
+
+    def get_visible_options(self, max_visible: int = 4):
+        valid_options = self.get_options()
+        offset = max(0, self.option_index - max_visible + 1)
+        return valid_options[offset:offset + max_visible], offset
+
+    def handle_input(self):
+        visibile_options = self.get_options()
+        if thumby.buttonU.justPressed() and self.option_index > 0:
+            self.option_index -= 1
+        elif thumby.buttonD.justPressed() and self.option_index < len(visibile_options) - 1:
+            self.option_index += 1
+
+        elif thumby.buttonL.justPressed() and self.menu_index > 0:
+            self.menu_index -= 1
+            self.option_index = 0
+
+        elif thumby.buttonR.justPressed() and self.menu_index < len(self.options) - 1:
+            self.menu_index += 1
+            self.option_index = 0
+
+        elif thumby.buttonA.justPressed():
+            valid_options = self.get_options()
+            if valid_options:
+                valid_options[self.option_index].action()
+        
+        elif thumby.buttonB.justPressed():
+            if self.leave_action:
+                self.leave_action()
+
+    def render(self):
+        thumby.display.fill(thumby.display.BLACK)
+
+        if self.title and self.menu_index < len(self.title):
+            thumby.display.drawText(self.title[self.menu_index](), 2, 0, thumby.display.LIGHTGRAY)
+
+        visible_options, offset = self.get_visible_options()
+        for i, option in enumerate(visible_options):
+            selected = thumby.display.WHITE if i + offset == self.option_index else thumby.display.DARKGRAY
+            if i + offset == self.option_index:
+                thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.WHITE)
+            thumby.display.drawText(option.label, 2, 8 + i * 8, selected)
+
+
 class Cat:
     _id_counter = 0  # Class variable for unique IDs
     def __init__(
             self,
-            sprite: thumby.Sprite,
+            sprite,
             position: Position,
             name: str,
             selected: bool=False,
             exhausted: bool=False,
-            stats: Stats=Stats(attack=5, defense=5, max_hp=10, speed=5, luck=5, range=3),
+            stats: Stats | None = None,
             enemy: bool=False,
             level: int=1,
             exp: int=0,
             next_level_exp: int=10,
             aiType: str='stand' or 'searchAndDestroy',
-            items: list[Item]=[],
+            items: list[Item] | None = None,
             classType: str='pupil' or 'warrior' or 'sniper' or 'wizard',
             weaponExp: WeaponExp=None
         ):
         self.id = f"cat_{Cat._id_counter}"  # Generate a sequential ID
         Cat._id_counter += 1
-        self.sprite: thumby.Sprite = sprite
+        self._sprite = None
+        self._sprite_factory = None
+        if callable(sprite):
+            self._sprite_factory = sprite
+        else:
+            self._sprite = sprite
         self.position: Position = position
         self.selected: bool = selected
         self.exhausted: bool = exhausted
         self.name: str = name
-        self.stats: Stats = stats
+        self.stats: Stats = stats if stats else Stats(attack=5, defense=5, max_hp=10, speed=5, luck=5, range=3)
         self.growthRates: GrowthRates = growthRate(name) 
         self.enemy: bool = enemy
         self.hp: int = self.stats.max_hp  # Initialize HP to max_hp
@@ -204,12 +285,29 @@ class Cat:
         self.level: int = level
         self.next_level_exp: int = next_level_exp
         self.aiType: str = aiType  # 'stand' or 'searchAndDestroy'
-        self.items: list[Item] = items[:4]  # Limit inventory to 4 items
+        self.items: list[Item] = (items if items else [])[:4]  # Limit inventory to 4 items
         self.max_items = 4
         self.classType: str = classType
         self.weaponExp: WeaponExp = weaponExp if weaponExp else WeaponExp()
+        self._class_sprite = None
+        self._class_sprite_key = None
+
+    @property
+    def sprite(self):
+        if self._sprite is None and self._sprite_factory is not None:
+            self._sprite = self._sprite_factory()
+        return self._sprite
+
+    @sprite.setter
+    def sprite(self, value):
+        self._sprite = value
+        self._sprite_factory = None
 
     def save_state(self):
+        import thumbySaves as thumbySaveData
+        thumbySaveData.saveData.setName("CatsEmblem")
+        thumbySaveData.saveData.delItem(f"{self.name}_stats")
+        thumbySaveData.saveData.delItem(f"{self.name}_items")
         thumbySaveData.saveData.setItem(f"{self.name}_stats", [
             self.stats.attack,
             self.stats.defense,
@@ -234,30 +332,21 @@ class Cat:
             self.weaponExp.spear,
         ])
         thumbySaveData.saveData.setItem(f"{self.name}_items", [item.name for item in self.items])
+        thumbySaveData.saveData.save()
 
     def getClassSprite(self, position: Position=Position(0,0)):
-        if self.enemy:
-            if self.classType == 'wizard':
-                pigHood = (bytearray([255, 231, 208, 140, 141, 141, 204, 224]), bytearray([0, 0, 16, 0, 0, 0, 0, 0]))
-                return thumby.Sprite(8, 8, pigHood , position.x, position.y, key=1)
-            if self.classType == 'sniper':
-                pigArrowQuill =(bytearray([255, 135, 123, 255, 255, 255, 255, 255]), bytearray([32, 0, 32, 0, 0, 0, 0, 0]))
-                return thumby.Sprite(8, 8, pigArrowQuill , position.x, position.y, key=1)
-            if self.classType == 'warrior':
-                pigArmor = (bytearray([207, 175, 143, 159, 159, 159, 255, 255]), bytearray([0, 32, 0, 0, 0, 0, 0, 0]))
-                return thumby.Sprite(8, 8, pigArmor , position.x, position.y, key=1)
+        sprite_key = (self.enemy, self.classType)
+        sprite_data = get_class_overlay_data().get(sprite_key)
+        if sprite_data is None:
+            return None
+
+        if self._class_sprite is None or self._class_sprite_key != sprite_key:
+            self._class_sprite = thumby.Sprite(8, 8, sprite_data, position.x, position.y, key=1)
+            self._class_sprite_key = sprite_key
         else:
-            if self.classType == 'wizard':   
-                catMageHood = (bytearray([255, 255, 231, 193, 194, 206, 206, 238]), bytearray([0, 0, 24, 62, 63, 49, 49, 17]))
-                return thumby.Sprite(8, 8, catMageHood , position.x, position.y, key=1)
-            if self.classType == 'sniper':
-                catArrowQuill = (bytearray([255, 135, 123, 255, 255, 255, 255, 255]), bytearray([32, 120, 164, 0, 0, 0, 0, 0]))
-                return thumby.Sprite(8, 8, catArrowQuill , position.x, position.y, key=1)
-            if self.classType == 'warrior':
-                catArmor = (bytearray([255, 207, 143, 159, 191, 159, 255, 255]), bytearray([0, 48, 112, 112, 96, 96, 0, 0]))
-                return thumby.Sprite(8, 8, catArmor , position.x, position.y, key=1)
-            else:
-                return None
+            self._class_sprite.x = position.x
+            self._class_sprite.y = position.y
+        return self._class_sprite
 
     def use_item(self, item_index):
         if item_index < 0 or item_index >= len(self.items):
@@ -307,6 +396,7 @@ class Cat:
         return Item(name="Fists", item_type="weapon", attack=0, accuracy=90, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'])
 
     def level_up(self, addDialog: callable):
+        import random
         self.level += 1
         self.next_level_exp += 20
 
@@ -334,7 +424,7 @@ class Cat:
 
     def promote(self, new_class: str):
         self.classType = new_class
-        self.classSprite = self.getClassSprite(self.classType, self.enemy, self.position)
+        self.classSprite = self.getClassSprite(self.position)
         self.exp = 0
         self.next_level_exp = 12
         if new_class == 'warrior':
@@ -356,17 +446,17 @@ class Cat:
 class Dialog:
     def __init__(
             self,
-            lines: list[str]=[],
-            left_cats: list[Cat]=[],
-            right_cats: list[Cat]=[],
+            lines: list[str] | None = None,
+            left_cats: list[Cat] | None = None,
+            right_cats: list[Cat] | None = None,
             currentlyTalking: str='',
             decision: bool=True,
             lambda_after=None
         ):
-        self.lines = lines
+        self.lines = lines if lines else []
         self.currentlyTalking = currentlyTalking
-        self.left_cats = left_cats
-        self.right_cats = right_cats
+        self.left_cats = left_cats if left_cats else []
+        self.right_cats = right_cats if right_cats else []
         self.lambda_after = lambda_after
         self.decision = decision
 
@@ -374,18 +464,19 @@ class House:
     def __init__(
             self,
             position: Position,
-            preVistedDialogs: list[Dialog]=[],
-            dialogs: list[Dialog]=[],
-            postVisitDialog: list[Dialog]=[],
-            visitCondition: callable=None
+            preVistedDialogs: list[Dialog] | None = None,
+            dialogs: list[Dialog] | None = None,
+            postVisitDialog: list[Dialog] | None = None,
+            visitCondition: callable=None,
+            multipleVisits: bool=False
         ):
         self.position = position
-        self.dialogs = dialogs
-        self.preVistedDialogs = preVistedDialogs
-        self.postVisitDialog = postVisitDialog
+        self.dialogs = dialogs if dialogs else []
+        self.preVistedDialogs = preVistedDialogs if preVistedDialogs else []
+        self.postVisitDialog = postVisitDialog if postVisitDialog else []
         defaultVisitCondition = lambda: True
         self.visitCondition = visitCondition if visitCondition else defaultVisitCondition
-        self.multipleVisits = False
+        self.multipleVisits = multipleVisits
         self.visited = False
     
     def visit(self):
@@ -419,49 +510,112 @@ class Shop:
         self.position = position
         self.inventory = inventory
 
+# --- CLASSES ---
+class LevelUpLog:
+    def __init__(
+            self,
+            catName: str,
+            catSprite: thumby.Sprite,
+            newLevel: int,
+            stats: Stats,
+        ):
+        self.catName = catName
+        self.catSprite = catSprite
+        self.newLevel = newLevel
+        self.stats = stats
+
+class AttackLog:
+    def __init__(
+            self,
+            attacker_name: str,
+            attacker_hp: int,
+            attacker_enemy: bool,
+            attacker_sprite: thumby.Sprite,
+            defender_name: str,
+            defender_hp: int,
+            defender_enemy: bool,
+            defender_sprite: thumby.Sprite,
+            damage: int,
+            old_hp: int,
+            new_hp: int,
+            miss: bool,
+            dodge: bool,
+            text: str,
+        ):
+        self.attacker_name = attacker_name
+        self.attacker_hp = attacker_hp
+        self.attacker_enemy = attacker_enemy
+        self.attacker_sprite = attacker_sprite
+        self.defender_name = defender_name
+        self.defender_hp = defender_hp
+        self.defender_enemy = defender_enemy
+        self.defender_sprite = defender_sprite
+        self.damage = damage
+        self.old_hp = old_hp
+        self.new_hp = new_hp
+        self.miss = miss
+        self.dodge = dodge
+        self.text = text
+
 def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
 def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
 
-## --- ITEMS ---
-tuna = Item(name="Tuna", item_type="consumable", effect={"heal": 10})
+_item_cache = {}
 
-## --- WEAPONS ---
-stick = Item(name="Stick", item_type="weapon", attack=2, accuracy=80, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'], weaponType='sword')
-slingshot = Item(name="Slngsht", item_type="weapon", attack=1, accuracy=75, range=2, crit=1, allowedClasses=['pupil', 'sniper', 'warrior', 'wizard'], weaponType='repeater')
+def _build_item(item_name: str):
+    if item_name == "Tuna":
+        return Item(name="Tuna", item_type="consumable", effect={"heal": 10})
+    if item_name == "Stick":
+        return Item(name="Stick", item_type="weapon", attack=2, accuracy=80, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'], weaponType='sword')
+    if item_name == "Slngsht":
+        return Item(name="Slngsht", item_type="weapon", attack=1, accuracy=75, range=2, crit=1, allowedClasses=['pupil', 'sniper', 'warrior', 'wizard'], weaponType='repeater')
+    if item_name == "LghtngTm":
+        return Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=2, crit=5, allowedClasses=['wizard'], weaponType='lightning')
+    if item_name == "WaterTm":
+        return Item(name="WaterTm", item_type="weapon", attack=3, accuracy=85, range=12, crit=3, allowedClasses=['wizard'], weaponType='water')
+    if item_name == "EarthTm":
+        return Item(name="EarthTm", item_type="weapon", attack=5, accuracy=70, range=1, crit=2, allowedClasses=['wizard'], weaponType='earth')
+    if item_name == "LongBow":
+        return Item(name="LongBow", item_type="weapon", attack=3, accuracy=80, range=3, crit=5, allowedClasses=['sniper'], weaponType='longbow')
+    if item_name == "Bow":
+        return Item(name="Bow", item_type="weapon", attack=5, accuracy=85, range=2, crit=3, allowedClasses=['sniper'], weaponType='bow')
+    if item_name == "Repeater":
+        return Item(name="Repeater", item_type="weapon", attack=3, accuracy=75, range=12, crit=4, allowedClasses=['sniper'], weaponType='repeater')
+    if item_name == "Sword":
+        return Item(name="Sword", item_type="weapon", attack=5, accuracy=85, range=1, crit=5, allowedClasses=['warrior', 'pupil'], weaponType='sword')
+    if item_name == "Spear":
+        return Item(name="Spear", item_type="weapon", attack=4, accuracy=60, range=2, crit=3, allowedClasses=['warrior'], weaponType='spear')
+    if item_name == "Mace":
+        return Item(name="Mace", item_type="weapon", attack=6, accuracy=75, range=12, crit=2, allowedClasses=['warrior'], weaponType='mace')
+    if item_name == "MystPot":
+        return Item(name="MystPot", item_type="promote", effect={"promote": "wizard"})
+    if item_name == "MstMeal":
+        return Item(name="MstMeal", item_type="promote", effect={"promote": "warrior"})
+    if item_name == "MstQll":
+        return Item(name="MstQll", item_type="promote", effect={"promote": "sniper"})
+    raise KeyError(item_name)
 
-lightningTome = Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=2, crit=5, allowedClasses=['wizard'], weaponType='lightning')
-waterTome = Item(name="WaterTm", item_type="weapon", attack=3, accuracy=85, range=2, crit=3, allowedClasses=['wizard'], weaponType='water')
-earthTome = Item(name="EarthTm", item_type="weapon", attack=5, accuracy=70, range=1, crit=2, allowedClasses=['wizard'], weaponType='earth')
+class LazyItemDict:
+    def __contains__(self, key):
+        return key in {
+            "Tuna", "Stick", "Slngsht", "LghtngTm", "WaterTm", "EarthTm",
+            "LongBow", "Bow", "Repeater", "Sword", "Spear", "Mace",
+            "MystPot", "MstMeal", "MstQll"
+        }
 
-longBow = Item(name="LongBow", item_type="weapon", attack=3, accuracy=80, range=3, crit=5, allowedClasses=['sniper'], weaponType='longbow')
-bow = Item(name="Bow", item_type="weapon", attack=4, accuracy=85, range=2, crit=3, allowedClasses=['sniper'], weaponType='bow')
-repeater = Item(name="Repeater", item_type="weapon", attack=5, accuracy=75, range=2, crit=4, allowedClasses=['sniper'], weaponType='repeater')
+    def __getitem__(self, key):
+        if key not in self:
+            raise KeyError(key)
+        if key not in _item_cache:
+            _item_cache[key] = _build_item(key)
+        return _item_cache[key]
 
-sword = Item(name="Sword", item_type="weapon", attack=5, accuracy=85, range=1, crit=5, allowedClasses=['warrior', 'pupil'], weaponType='sword')
-spear = Item(name="Spear", item_type="weapon", attack=4, accuracy=60, range=2, crit=3, allowedClasses=['warrior'], weaponType='spear')
-mace = Item(name="Mace", item_type="weapon", attack=6, accuracy=75, range=1, crit=2, allowedClasses=['warrior'], weaponType='mace')
+    def get(self, key, default=None):
+        if key in self:
+            return self[key]
+        return default
 
-mysticPotion = Item(name="MystPot", item_type="promote", effect={"promote": "wizard"})
-mysticMeal = Item(name="MstMeal", item_type="promote", effect={"promote": "warrior"})
-mysticQuill = Item(name="MstQll", item_type="promote", effect={"promote": "sniper"})
-
-itemDict = {
-    "Tuna": tuna,
-    "Stick": stick,
-    "Slngsht": slingshot,
-    "LghtngTm": lightningTome,
-    "WaterTm": waterTome,
-    "EarthTm": earthTome,
-    "LongBow": longBow,
-    "Bow": bow,
-    "Repeater": repeater,
-    "Sword": sword,
-    "Spear": spear,
-    "Mace": mace,
-    "MystPot": mysticPotion,
-    "MstMeal": mysticMeal,
-    "MstQll": mysticQuill
-}
+itemDict = LazyItemDict()
 
 class Conversation:
 	def __init__(
@@ -476,75 +630,104 @@ class Conversation:
 		self.nameTwo = nameTwo
 		self.condition = condition
 
-# --- UNITS ---
-cat = Cat(
-	cat_sprite(),
-	Position(2, 4),
-	'cat',
-	False,
-	False,
-	Stats(attack=5, defense=3, max_hp=10, speed=8, luck=4, range=4),
-	None,
-	False,
-	items=[itemDict['Stick'], itemDict['Tuna']],
-)
+# --- UNITS (lazy) ---
+_unit_cache = {}
 
-tac = Cat(
-	cat_sprite(),
-	Position(5, 13),
-	'tac',
-	False,
-	False,
-	Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
-	None,
-	False,
-	items=[itemDict['Slngsht']]
-)
+def _build_cat_unit():
+    return Cat(
+        sprite=cat_sprite,
+        position=Position(2, 4),
+        name='cat',
+        selected=False,
+        exhausted=False,
+        stats=Stats(attack=5, defense=3, max_hp=10, speed=8, luck=4, range=4),
+        enemy=False,
+        items=[itemDict['Stick'], itemDict['Tuna']],
+    )
 
-mew = Cat(
-	sprite=cat_sprite(),
-	level=3,
-	name='mew',
-	position=Position(3,1),
-	stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
-	enemy=True,
-	items=[itemDict['Stick']],
-	weaponExp=WeaponExp(repeater=10, sword=20)
-)
+def _build_tac_unit():
+    return Cat(
+        sprite=cat_sprite,
+        position=Position(5, 13),
+        name='tac',
+        selected=False,
+        exhausted=False,
+        stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
+        enemy=False,
+        items=[itemDict['Slngsht']]
+    )
 
-bub = Cat(
-	level=6,
-	sprite=cat_sprite(),
-	name='bub',
-	position=Position(8,1),
-	stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
-	enemy=False,
-	classType='sniper',
-	items=[itemDict['Slngsht']],
-	weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10)
-)
+def _build_mew_unit():
+    return Cat(
+        sprite=cat_sprite,
+        level=3,
+        name='mew',
+        position=Position(3,1),
+        stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
+        enemy=True,
+        items=[itemDict['Stick']],
+        weaponExp=WeaponExp(repeater=10, sword=20)
+    )
 
-bao = Cat(
-	sprite=cat_sprite(),
-	name='bao',
-	position=Position(8,14),
-	stats=Stats(attack=8, defense=5, max_hp=10, speed=10, luck=8, range=6),
-	level=5,
-	enemy=False,
-	aiType='stand',
-	classType='wizard',
-	items=[itemDict['LghtngTm'], itemDict['Tuna']],
-	weaponExp=WeaponExp(lightning=60, water=20, earth=35, sword=10, repeater=15)
-)
+def _build_bub_unit():
+    return Cat(
+        level=6,
+        sprite=cat_sprite,
+        name='bub',
+        position=Position(8,1),
+        stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
+        enemy=False,
+        classType='sniper',
+        items=[itemDict['Slngsht']],
+        weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10)
+    )
 
-npc = Cat(
-	sprite=cat_sprite(),
-	name='npc',
-	position=Position(0,0),
-	stats=Stats(attack=0, defense=0, max_hp=1, speed=0, luck=0, range=0),
-	enemy=False,
-	items=[]
-)
+def _build_bao_unit():
+    return Cat(
+        sprite=cat_sprite,
+        name='bao',
+        position=Position(8,14),
+        stats=Stats(attack=8, defense=5, max_hp=10, speed=10, luck=8, range=6),
+        level=5,
+        enemy=False,
+        aiType='stand',
+        classType='wizard',
+        items=[itemDict['LghtngTm'], itemDict['Tuna']],
+        weaponExp=WeaponExp(lightning=60, water=20, earth=35, sword=10, repeater=15)
+    )
+
+def _build_npc_unit():
+    return Cat(
+        sprite=cat_sprite,
+        name='npc',
+        position=Position(0,0),
+        stats=Stats(attack=0, defense=0, max_hp=1, speed=0, luck=0, range=0),
+        enemy=False,
+        items=[]
+    )
+
+def _get_or_create_unit(unit_name: str, factory):
+    if unit_name not in _unit_cache:
+        _unit_cache[unit_name] = factory()
+    return _unit_cache[unit_name]
+
+def get_cat():
+    return _get_or_create_unit('cat', _build_cat_unit)
+
+def get_tac():
+    return _get_or_create_unit('tac', _build_tac_unit)
+
+def get_mew():
+    return _get_or_create_unit('mew', _build_mew_unit)
+
+def get_bub():
+    return _get_or_create_unit('bub', _build_bub_unit)
+
+def get_bao():
+    return _get_or_create_unit('bao', _build_bao_unit)
+
+def get_npc():
+    return _get_or_create_unit('npc', _build_npc_unit)
 
 checkClearMem("After defining units")
 
@@ -604,20 +787,35 @@ tiles = {
 	WALL_SIDE: {"sprite": (bytearray([17, 17, 68, 68, 17, 17, 68, 68]), bytearray([85, 17, 85, 68, 85, 17, 85, 68])), "XFLIP": False, "YFLIP": False},
 	TILE_WATER_CLIFF: {"sprite": (bytearray([0, 1, 3, 7, 15, 31, 63, 127]), bytearray([1, 2, 4, 8, 16, 32, 64, 128])), "XFLIP": False, "YFLIP": False},
 }
-tiles.update({
-	TILE_COAST_XFLIP: dict(tiles[TILE_COAST_X], XFLIP=True),
-	TILE_COASTY_YFLIP: dict(tiles[TILE_COASTY], YFLIP=True),
-	TILE_CLIFF_B_TLBR_XFLIP: dict(tiles[TILE_CLIFFBTLBR], XFLIP=True),
-	TILE_CLIFF_B_TLBR_YFLIP: dict(tiles[TILE_CLIFFBTLBR], YFLIP=True),
-	TILE_CLIFF_B_TLBR_XYFLIP: dict(tiles[TILE_CLIFFBTLBR], XFLIP=True, YFLIP=True),
-	TILE_CLIFF_TTLBR_XFLIP: dict(tiles[TILE_CLIFF_TTLBR], XFLIP=True),
-	TILE_COAST_CORNER_BR_XFLIP: dict(tiles[TILE_COAST_CORNER_BR], XFLIP=True),
-	TILE_COAST_CORNER_BR_YFLIP: dict(tiles[TILE_COAST_CORNER_BR], YFLIP=True),
-	TILE_COAST_CORNER_BR_XYFLIP: dict(tiles[TILE_COAST_CORNER_BR], XFLIP=True, YFLIP=True),
-	TILE_WATER_CLIFF_YFLIP: dict(tiles[TILE_WATER_CLIFF], YFLIP=True),
-	TILE_WATER_CLIFF_XFLIP: dict(tiles[TILE_WATER_CLIFF], XFLIP=True),
-	TILE_WATER_CLIFF_XYFLIP: dict(tiles[TILE_WATER_CLIFF], XFLIP=True, YFLIP=True),
-})
+
+_tile_flip_overrides = {
+    TILE_COAST_XFLIP: (TILE_COAST_X, True, False),
+    TILE_COASTY_YFLIP: (TILE_COASTY, False, True),
+    TILE_CLIFF_B_TLBR_XFLIP: (TILE_CLIFFBTLBR, True, False),
+    TILE_CLIFF_B_TLBR_YFLIP: (TILE_CLIFFBTLBR, False, True),
+    TILE_CLIFF_B_TLBR_XYFLIP: (TILE_CLIFFBTLBR, True, True),
+    TILE_CLIFF_TTLBR_XFLIP: (TILE_CLIFF_TTLBR, True, False),
+    TILE_COAST_CORNER_BR_XFLIP: (TILE_COAST_CORNER_BR, True, False),
+    TILE_COAST_CORNER_BR_YFLIP: (TILE_COAST_CORNER_BR, False, True),
+    TILE_COAST_CORNER_BR_XYFLIP: (TILE_COAST_CORNER_BR, True, True),
+    TILE_WATER_CLIFF_YFLIP: (TILE_WATER_CLIFF, False, True),
+    TILE_WATER_CLIFF_XFLIP: (TILE_WATER_CLIFF, True, False),
+    TILE_WATER_CLIFF_XYFLIP: (TILE_WATER_CLIFF, True, True),
+}
+
+def get_tile_data(tile_type: int):
+    tileData = tiles.get(tile_type, None)
+    if tileData:
+        return tileData["sprite"], tileData["XFLIP"], tileData["YFLIP"]
+
+    override = _tile_flip_overrides.get(tile_type, None)
+    if override:
+        base_type, x_flip, y_flip = override
+        baseData = tiles.get(base_type, None)
+        if baseData:
+            return baseData["sprite"], x_flip, y_flip
+
+    return None, False, False
 
 canWalkOn = {
 	TILE_GRASS: True,
@@ -665,177 +863,29 @@ tileEvation = {
 
 checkClearMem("After defining tile properties")
 
-map1 = [
-	[TILE_COASTY, TILE_COASTY, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER],
-	[TILE_GRASS, TILE_GRASS, TILE_COAST_CORNER_BR_XFLIP, TILE_COASTY, TILE_COASTY, TILE_COASTY, TILE_COASTY, TILE_WATER, TILE_WATER, TILE_WATER],
-	[TILE_GRASS, TILE_HOUSE, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_COAST_CORNER_BR_XFLIP, TILE_COASTY, TILE_COASTY],
-	[TILE_FOREST, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_FOREST],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_MOUNTAIN],
-	[TILE_MOUNTAIN, TILE_GRASS, TILE_FOREST, TILE_GRASS, EMPTY, TILE_GRASS, TILE_FOREST, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN],
-	[WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, EMPTY, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP],
-	[WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, EMPTY, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE],
-	[TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_MOUNTAIN, TILE_MOUNTAIN],
-	[TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, TILE_GRASS, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY, TILE_FOREST, TILE_MOUNTAIN],
-	[TILE_MOUNTAIN, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST, TILE_FOREST, TILE_FOREST, TILE_FOREST, TILE_MOUNTAIN],
-	[TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, TILE_HOUSE, TILE_SHOP, TILE_HOUSE, TILE_MOUNTAIN],
-	[TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN],
-	[TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST],
-	[TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST],
-	[TILE_FOREST, TILE_FOREST, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_FOREST, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_FOREST]
-]
+_map_cache = {}
 
-map2 = [
-	[TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, TILE_GRASS, TILE_FOREST, TILE_GRASS, EMPTY, TILE_GRASS, TILE_FOREST],
-	[TILE_GRASS, EMPTY, TILE_HOUSE, EMPTY, TILE_HOUSE, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-	[EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_FOREST, TILE_FOREST, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, TILE_FOREST, TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, EMPTY, TILE_FOREST, WALL_TOP],
-	[EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, TILE_GRASS, TILE_FOREST, TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, WALL_SIDE],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_FOREST, TILE_FOREST, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-	[WALL_SIDE, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_MOUNTAIN, TILE_FOREST, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-	[EMPTY, TILE_HOUSE, EMPTY, EMPTY, TILE_FOREST, EMPTY, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, WALL_TOP],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_HOUSE, WALL_SIDE],
-	[TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY]
-]
+def get_map(map_number: int):
+    if map_number in _map_cache:
+        return _map_cache[map_number]
 
-map3 = [
-	[EMPTY, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, TILE_FOREST, WALL_TOP, TILE_BRIDGE, WALL_TOP, TILE_FOREST],
-	[TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_COAST_CORNER_BR_XYFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COAST_CORNER_BR_YFLIP, WALL_SIDE, TILE_HOUSE, WALL_SIDE, EMPTY],
-	[TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER, TILE_WATER, TILE_COAST_X, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER, TILE_COAST_X, TILE_GRASS, EMPTY, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, TILE_GRASS, TILE_COAST_CORNER_BR_XFLIP, TILE_COAST_CORNER_BR, EMPTY, EMPTY, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY],
-	[WALL_TOP, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, WALL_TOP, TILE_CLIFF_STRAIGHT, TILE_CLIFFBTLBR, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, TILE_CLIFF_B_TLBR_XFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT],
-	[WALL_SIDE, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, WALL_SIDE, TILE_FOREST, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_B_TLBR_YFLIP, TILE_FOREST, EMPTY, TILE_GRASS, TILE_HOUSE, TILE_GRASS, TILE_GRASS],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST],
-	[EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_CLIFF_STRAIGHT, TILE_CLIFFBTLBR, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_CLIFF_B_TLBR_XFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, WALL_TOP, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, WALL_TOP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT],
-	[TILE_GRASS, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_B_TLBR_YFLIP, TILE_GRASS, TILE_GRASS, WALL_SIDE, EMPTY, EMPTY, EMPTY, EMPTY, WALL_SIDE, TILE_FOREST, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY],
-	[EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY]
-]
+    import MapData
+    maps = {
+        1: MapData.map1,
+        2: MapData.map2,
+        3: MapData.map3,
+        4: MapData.map4,
+        5: MapData.map5,
+        6: MapData.map6,
+        7: MapData.map7,
+        8: MapData.map8,
+        9: MapData.map9,
+    }
+    if map_number not in maps:
+        raise ValueError(f"Map {map_number} does not exist")
 
-map4 = [
-    [TILE_HOUSE, TILE_HOUSE, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-    [EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY],
-    [EMPTY, TILE_GRASS, TILE_FOREST, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY],
-    [EMPTY, TILE_FOREST, TILE_GRASS, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY],
-    [EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_COAST_CORNER_BR_XYFLIP],
-    [EMPTY, TILE_FOREST, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_COAST_XFLIP],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_COAST_CORNER_BR_XYFLIP, TILE_WATER],
-    [EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST, TILE_COAST_XFLIP, TILE_WATER],
-    [EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, TILE_MOUNTAIN, TILE_COAST_XFLIP, TILE_WATER],
-    [EMPTY, TILE_GRASS, EMPTY, TILE_SHOP, TILE_MOUNTAIN, EMPTY, EMPTY, TILE_COAST_XFLIP, TILE_WATER],
-    [EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_GRASS, EMPTY, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER],
-    [EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, TILE_COAST_CORNER_BR_XFLIP],
-    [EMPTY, EMPTY, TILE_GRASS, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY],
-    [TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_HOUSE, EMPTY],
-    [EMPTY, TILE_GRASS, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS]
-]
-
-map5 = [
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_HOUSE, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, EMPTY, TILE_FOREST, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_CORNER_BR, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS],
-	[TILE_WATER, TILE_WATER, TILE_BRIDGE, TILE_BRIDGE, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, TILE_FOREST, TILE_FOREST, TILE_HOUSE, TILE_GRASS],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, TILE_FOREST, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, EMPTY, TILE_GRASS, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_BRIDGE, TILE_BRIDGE, TILE_BRIDGE, TILE_BRIDGE, TILE_BRIDGE, EMPTY, TILE_FOREST, EMPTY, TILE_FOREST, TILE_FOREST, TILE_HOUSE, TILE_FOREST, TILE_FOREST, TILE_GRASS, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY]
-]
-
-map6 = [
-	[WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP],
-	[WALL_TOP, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_TOP, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_TOP, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_SIDE, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_TOP, EMPTY, WALL_TOP, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_TOP, WALL_TOP, EMPTY, WALL_TOP, WALL_TOP, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_SIDE, EMPTY, WALL_SIDE, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_SIDE, WALL_SIDE, EMPTY, WALL_SIDE, WALL_SIDE, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_TOP, EMPTY, WALL_TOP, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, WALL_SIDE, EMPTY, WALL_SIDE, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_SIDE, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP],
-	[WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP, WALL_TOP]
-]
-
-map7 = [
-    [TILE_GRASS, TILE_FOREST, TILE_FOREST, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, TILE_MOUNTAIN, TILE_GRASS, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, EMPTY, TILE_GRASS, EMPTY, EMPTY],
-    [EMPTY, TILE_HOUSE, EMPTY, TILE_SHOP, TILE_SHOP, TILE_FOREST, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, TILE_GRASS, TILE_HOUSE, TILE_GRASS, TILE_MOUNTAIN, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_FOREST],
-    [TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY],
-    [TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-    [EMPTY, TILE_MOUNTAIN, EMPTY, TILE_FOREST, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-    [EMPTY, TILE_FOREST, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-    [TILE_FOREST, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY],
-    [TILE_FOREST, TILE_GRASS, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY],
-    [TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-    [TILE_GRASS, TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-    [EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_HOUSE, EMPTY, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS],
-    [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, EMPTY, TILE_MOUNTAIN]
-]
-
-map8 = [
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COASTY, TILE_COASTY, TILE_COASTY, TILE_COASTY, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER],
-	[TILE_WATER_CLIFF_YFLIP, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_WATER_CLIFF_XYFLIP, TILE_WATER, TILE_COAST_X, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER, TILE_WATER, TILE_WATER],
-	[TILE_MOUNTAIN, TILE_FOREST, TILE_FOREST, TILE_GRASS, TILE_HOUSE, EMPTY, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_GRASS, TILE_WATER, TILE_COAST_X, TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_FOREST, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER, TILE_WATER],
-	[TILE_MOUNTAIN, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_WATER, TILE_COAST_X, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_FOREST, TILE_WATER],
-	[TILE_CLIFFBTLBR, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_CLIFF_B_TLBR_XFLIP, TILE_WATER, TILE_COAST_X, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, EMPTY, TILE_COAST_XFLIP],
-	[TILE_CLIFF_B_TLBR_XYFLIP, WALL_SIDE, WALL_SIDE, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, WALL_SIDE, WALL_SIDE, TILE_CLIFF_B_TLBR_YFLIP, TILE_COAST_XFLIP, TILE_COAST_CORNER_BR, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_COAST_XFLIP],
-	[TILE_MOUNTAIN, TILE_GRASS, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_FOREST, TILE_MOUNTAIN, TILE_COAST_CORNER_BR_XYFLIP, TILE_COAST_X, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_COAST_XFLIP],
-	[TILE_COAST_CORNER_BR_YFLIP, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, TILE_COAST_CORNER_BR_XYFLIP, TILE_WATER, TILE_COAST_X, WALL_TOP, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_COAST_XFLIP],
-	[TILE_COAST_X, TILE_GRASS, EMPTY, TILE_FOREST, TILE_FOREST, TILE_FOREST, EMPTY, TILE_GRASS, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER, TILE_COAST_X, WALL_SIDE, WALL_TOP, WALL_TOP, EMPTY, EMPTY, WALL_TOP, WALL_TOP, WALL_TOP, TILE_COAST_XFLIP],
-	[TILE_COAST_X, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_FOREST, TILE_GRASS, TILE_FOREST, TILE_FOREST, TILE_COAST_CORNER_BR_XFLIP, TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, WALL_SIDE, WALL_SIDE, EMPTY, EMPTY, WALL_SIDE, WALL_SIDE, WALL_SIDE, TILE_COAST_XFLIP],
-	[TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_COAST_XFLIP, TILE_COAST_X, TILE_FOREST, TILE_GRASS, EMPTY, EMPTY, TILE_HOUSE, TILE_HOUSE, TILE_MOUNTAIN, TILE_COAST_XFLIP],
-	[TILE_WATER, TILE_COAST_X, TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, TILE_BRIDGE, TILE_BRIDGE, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_MOUNTAIN, TILE_COAST_XFLIP],
-	[TILE_WATER, TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, TILE_MOUNTAIN, TILE_GRASS, TILE_FOREST, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_COAST_XFLIP, TILE_COAST_X, TILE_GRASS, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_MOUNTAIN, TILE_COAST_CORNER_BR_XYFLIP, TILE_WATER],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_WATER, TILE_WATER, TILE_COAST_CORNER_BR_YFLIP, TILE_GRASS, EMPTY, TILE_GRASS, TILE_GRASS, TILE_MOUNTAIN, TILE_COAST_XFLIP, TILE_WATER],
-	[TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_WATER, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_COASTY_YFLIP, TILE_WATER, TILE_WATER]
-]
-
-map9 = [
-	[TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_GRASS, TILE_GRASS, TILE_MOUNTAIN, TILE_GRASS, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFFBTLBR, EMPTY, EMPTY, WALL_TOP, WALL_TOP, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, WALL_TOP, WALL_TOP],
-	[TILE_GRASS, TILE_HOUSE, TILE_HOUSE, TILE_GRASS, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY, TILE_FOREST, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, WALL_SIDE, WALL_SIDE, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, WALL_SIDE, WALL_SIDE],
-	[TILE_MOUNTAIN, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS],
-	[TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, WALL_TOP, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[WALL_SIDE, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, WALL_SIDE, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFFBTLBR, EMPTY, EMPTY, TILE_CLIFF_B_TLBR_XFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFFBTLBR, EMPTY, EMPTY, TILE_CLIFF_B_TLBR_XFLIP],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_B_TLBR_YFLIP, TILE_FOREST, TILE_GRASS, TILE_GRASS, TILE_FOREST, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_B_TLBR_YFLIP],
-	[TILE_MOUNTAIN, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, EMPTY, TILE_FOREST, EMPTY, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_GRASS, EMPTY],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_GRASS, TILE_GRASS, TILE_CLIFF_B_TLBR_XFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFFBTLBR, EMPTY, EMPTY, TILE_CLIFF_B_TLBR_XFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_STAIRS, TILE_CLIFF_STRAIGHT],
-	[TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_B_TLBR_YFLIP, TILE_FOREST, TILE_FOREST, TILE_GRASS, TILE_CLIFF_B_TLBR_XYFLIP, TILE_CLIFF_STRAIGHT, TILE_CLIFF_STRAIGHT, TILE_CLIFF_B_TLBR_YFLIP, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_GRASS, TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-	[TILE_GRASS, TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, TILE_FOREST],
-	[EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY],
-	[TILE_GRASS, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, TILE_FOREST, EMPTY, EMPTY]
-]
+    map_data = maps[map_number]
+    _map_cache.clear()
+    _map_cache[map_number] = map_data
+    gc.collect()
+    return map_data

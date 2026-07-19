@@ -73,7 +73,7 @@ def get_stats_for_level(level: int):
 		range=3
 	)
 
-def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='enemy', weapon="Stick", classType='pupil'):
+def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil'):
 	enemySprite = enemy_sprite()
 	return Cat(
 		sprite=enemySprite,
@@ -98,10 +98,10 @@ class Level:
 			enemies: list[Cat],
 			number: int=1,
 			seizePosition=Position(1, 1),
-			startingPositions=[],
-			shops: list[Shop]=[],
-			houses: list[House]=[],
-			conversations: list[Conversation]=[]
+			startingPositions: list[Position] | None = None,
+			shops: list[Shop] | None = None,
+			houses: list[House] | None = None,
+			conversations: list[Conversation] | None = None
 		):
 		self.map = map
 		self.enemies = enemies
@@ -109,22 +109,25 @@ class Level:
 		self.selectorPosition = Position()
 		self.number = number
 		self.seizePosition = seizePosition
-		self.startingPositions = startingPositions
-		self.shops = shops
-		self.houses: list[House] = houses
-		self.conversations: list[Conversation] = conversations
+		self.startingPositions = startingPositions if startingPositions else []
+		self.shops = shops if shops else []
+		self.houses: list[House] = houses if houses else []
+		self.conversations: list[Conversation] = conversations if conversations else []
 
 _level_cache = {}
 class Levels:
 	def _build_level1():
 		checkClearMem('level1')
-		from Shared import map1, npc, cat, tac
+		from Shared import get_map, get_npc, get_cat, get_tac
+		npc = get_npc()
+		cat = get_cat()
+		tac = get_tac()
 		level = None
 		level = Level(
-			map = map1,
+			map = get_map(1),
 			enemies=[
-				generate_enemy(1, Position(4, 4), name='enemy'),
-				generate_enemy(1, Position(6, 4), name='enemy', weapon='Slngsht'),
+				generate_enemy(1, Position(4, 4), name='pig'),
+				generate_enemy(1, Position(6, 4), name='pig', weapon='Slngsht'),
 				generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior')
 			],
 			number=1,
@@ -198,14 +201,15 @@ class Levels:
 
 	def _build_level2():
 		checkClearMem('level2')
-		from Shared import map2, npc
+		from Shared import get_map, get_npc
+		npc = get_npc()
 		level = None
 
 		def visit_condition():
 			return level is not None and level.enemies == [] and can_give_item(Position(2,1))
 
 		level = Level(
-			map=map2,
+			map=get_map(2),
 			enemies=[
 				generate_enemy(1, Position(9, 8), name='mut'),
 				generate_enemy(2, Position(11, 9), name='mut'),
@@ -298,7 +302,10 @@ class Levels:
 
 	def _build_level3():
 		checkClearMem('level3')
-		from Shared import map3, npc, cat, mew
+		from Shared import get_map, get_npc, get_cat, get_mew
+		npc = get_npc()
+		cat = get_cat()
+		mew = get_mew()
 		level = None
 
 		def conversation_condition():
@@ -309,7 +316,7 @@ class Levels:
 			return abs(diff) <= 1
 
 		level = Level(
-			map=map3,
+			map=get_map(3),
 			enemies=[
 				generate_enemy(2, Position(14, 8), name='mut'),
 				generate_enemy(2, Position(3, 9), name='mut'),
@@ -410,7 +417,10 @@ class Levels:
 
 	def _build_level4():
 		checkClearMem('level4')
-		from Shared import map4, npc, cat, bao
+		from Shared import get_map, get_npc, get_cat, get_bao
+		npc = get_npc()
+		cat = get_cat()
+		bao = get_bao()
 		level = None
 
 		def conversation_condition():
@@ -419,17 +429,20 @@ class Levels:
 				return False
 			diff =  abs(selCat.position.x - bao.position.x) + abs(selCat.position.y - bao.position.y)
 			return abs(diff) <= 1
+		
+		def visit_condition():
+			return level is not None and level.enemies == [] and can_give_item(Position(7,13))
 				
 
 		level = Level(
-			map=map4,
+			map=get_map(4),
 			enemies=[
-				generate_enemy(2, Position(0, 4), name='enemy'),
-				generate_enemy(3, Position(2, 9), name='enemy', weapon='LongBow', classType='sniper'),
-				generate_enemy(2, Position(2, 11), name='enemy'),
-				generate_enemy(3, Position(3, 10), name='enemy'),
+				generate_enemy(2, Position(0, 4), name='pig'),
+				generate_enemy(3, Position(2, 9), name='snips', weapon='LongBow', classType='sniper'),
+				generate_enemy(2, Position(2, 11), name='pig'),
+				generate_enemy(3, Position(3, 10), name='pig'),
 				bao,
-				generate_enemy(4, Position(3, 9), name='arch', weapon='LghtngTm', classType='warrior', ai='stand')
+				generate_enemy(4, Position(3, 9), name='himb', weapon='Spear', classType='warrior', ai='stand')
 			],
 			number=4,
 			seizePosition=Position(3, 9),
@@ -440,20 +453,20 @@ class Levels:
 					preVistedDialogs=[Dialog(
 						lines=["muggle,","freaking", "nerd"],
 						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(0, 0))],
 						currentlyTalking='npc'
 					)],
-					visitCondition=lambda: get_cat_at_position(Position(17, 8)) is not None and get_cat_at_position(Position(17, 8)).classType == 'wizard' and can_give_item(Position(0,0)),
+					visitCondition=lambda: get_cat_at_position(Position(0, 0)) is not None and get_cat_at_position(Position(0, 0)).classType == 'wizard' and can_give_item(Position(0,0)),
 					dialogs=[Dialog(
 						lines=["Oh,","a wizard!"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(0, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc',
 						lambda_after=lambda: give_item(Position(0,0), itemDict['LghtngTm'])
 					)],
 					postVisitDialog=[Dialog(
 						lines=["Use it","wisely."],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(0, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					)]
@@ -462,12 +475,12 @@ class Levels:
 					position=Position(1, 0),
 					dialogs=[Dialog(
 						lines=["If youre","speed is","great"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(1, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					), Dialog(
 						lines=["you can","double","attacks"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(1, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					)],
@@ -476,30 +489,30 @@ class Levels:
 					position=Position(7, 13),
 					preVistedDialogs=[Dialog(
 						lines=["I was working","and toxic", "pigs showed"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(7, 13))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					), Dialog(
 						lines=["I thought", "this was a", "conspiracy"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(7, 13))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					), Dialog(
 						lines=["I would", "like them", "gone"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(7, 13))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					)],
-					visitCondition=lambda: get_cat_at_position(Position(17, 8)) is not None and level.enemies.size() == 0 and can_give_item(Position(7,13)),
+					visitCondition=visit_condition,
 					dialogs=[
 						Dialog(
 							lines=["Thank you","ridding the","pigs"],
-							right_cats=[get_cat_at_position(Position(17, 8))],
+							right_cats=[get_cat_at_position(Position(7, 13))],
 							left_cats=[npc],
 							currentlyTalking='npc'
 						), Dialog(
 							lines=["Take 50g","seems right"],
-							right_cats=[get_cat_at_position(Position(17, 8))],
+							right_cats=[get_cat_at_position(Position(7, 13))],
 							left_cats=[npc],
 							currentlyTalking='npc',
 							lambda_after=lambda: modify_bank(50)
@@ -549,7 +562,9 @@ class Levels:
 
 	def _build_level5():
 		checkClearMem('level5')
-		from Shared import map5, npc, bub
+		from Shared import get_map, get_npc, get_bub
+		npc = get_npc()
+		bub = get_bub()
 
 		def houseCondition(position: Position):
 			selCat = get_cat_at_position(position)
@@ -570,7 +585,7 @@ class Levels:
 					break
 
 		level = Level(
-			map=map5,
+			map=get_map(5),
 			enemies=[
 				generate_enemy(3, Position(2, 6), name='mut'),
 				generate_enemy(3, Position(9, 4), name='mut'),
@@ -582,7 +597,7 @@ class Levels:
 			],
 			number=5,
 			seizePosition=Position(1, 15),
-			startingPositions=[Position(13, 1), Position(14, 2), Position(13, 3)],
+			startingPositions=[Position(13, 1), Position(14, 2), Position(13, 3), Position(14, 3)],
 			houses=[
 				House(
 					multipleVisits=True,
@@ -637,8 +652,8 @@ class Levels:
 						currentlyTalking='npc'
 					), Dialog(
 						lines=["Take 10g", "all I", "got"],
-						right_cats=[get_cat_at_position(14,9)],
-						left_cat=[npc],
+						right_cats=[get_cat_at_position(Position(14, 9))],
+						left_cats=[npc],
 						currentlyTalking='npc',
 						lambda_after=lambda: modify_bank(10)
 					), Dialog(
@@ -648,7 +663,7 @@ class Levels:
 						Dialog(
 							lines=["Good luck", "and", "remember"],
 							left_cats=[npc],
-							right_cats=[get_cat_at_position(14,9)],
+							right_cats=[get_cat_at_position(Position(14, 9))],
 							currentlyTalking='npc'
 						)
 					]
@@ -696,9 +711,9 @@ class Levels:
 
 	def _build_level6():
 		checkClearMem('level6')
-		from Shared import map6
+		from Shared import get_map
 		level = Level(
-			map=map6,
+			map=get_map(6),
 			enemies=[
 				generate_enemy(3, Position(6, 8), name='mut'),
 				generate_enemy(3, Position(8, 7), name='mut'),
@@ -729,9 +744,10 @@ class Levels:
 
 	def _build_level7():
 		checkClearMem('level7')
-		from Shared import map7, npc
+		from Shared import get_map, get_npc
+		npc = get_npc()
 		level = Level(
-			map=map7,
+			map=get_map(7),
 			enemies=[
 				generate_enemy(3, Position(2, 4), name='mut'),
 				generate_enemy(3, Position(2, 10), name='mut'),
@@ -796,9 +812,10 @@ class Levels:
 
 	def _build_level8():
 		checkClearMem('level8')
-		from Shared import map8, cat
+		from Shared import get_map, get_cat
+		cat = get_cat()
 		level = Level(
-			map=map8,
+			map=get_map(8),
 			enemies=[
 				generate_enemy(2, Position(14, 9), name ='jr'),
 				generate_enemy(1, Position(15, 9), name='mini'),
@@ -809,7 +826,7 @@ class Levels:
 			number=8,
 			seizePosition=Position(4, 2),
 			startingPositions=[Position(16, 3), Position(15, 3)],
-			houses={
+			houses=[
 				House(
 					position=Position(16, 10),
 					dialogs=[Dialog(
@@ -828,15 +845,16 @@ class Levels:
 						currentlyTalking='cat'
 					)]
 				)
-			}
+			]
 		)
 		return level
 
 	def _build_level9():
 		checkClearMem('level9')
-		from Shared import map9, npc
+		from Shared import get_map, get_npc
+		npc = get_npc()
 		level = Level(
-			map=map9,
+			map=get_map(9),
 			enemies=[
 				generate_enemy(3, Position(15, 16), name='mut'),
 				generate_enemy(3, Position(16, 13), name='mut'),
