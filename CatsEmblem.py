@@ -3,12 +3,12 @@ import time
 
 def checkClearMem(message: str = ''):
     gc.collect()
-    print("Free memory:", gc.mem_free(), message)
+    print("Free memory (CatsEmblem.py):", gc.mem_free(), message)
 
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
-print("Game Starting mem:", gc.mem_free())
+print("Game Starting mem (CatsEmblem.py):", gc.mem_free())
 
 import machine
 import thumbyGrayscale as thumby
@@ -17,25 +17,25 @@ checkClearMem('grayscale')
 thumby.display.setFPS(8)
 thumby.display.fill(thumby.display.BLACK)
 thumby.display.drawText("Loading", 6, 16, thumby.display.WHITE)
-thumby.display.enableGrayscale()
 thumby.display.show()
 
-from Shared import Cat, Position, classAdvantages, weaponAdvantages, Item, Dialog
-checkClearMem('shared')
+from Shared import Cat, Position, cat_sprite, classAdvantages, weaponAdvantages, Item, Dialog, tiles, canWalkOn, tileEvation
+checkClearMem('shared imported')
 thumby.display.fill(thumby.display.BLACK)
 thumby.display.drawText("Loading.", 6, 16, thumby.display.WHITE)
 thumby.display.show()
 from GameState import GameState, Menu, AttackLog
-checkClearMem('gamestate')
+checkClearMem('gamestate imported')
 thumby.display.fill(thumby.display.BLACK)
 thumby.display.drawText("Loading..", 6, 16, thumby.display.WHITE)
 thumby.display.show()
-from Levels import tiles, canWalkOn, cat_sprite, set_game_state_callbacks, tileEvation
-checkClearMem('levels')
+from Levels import set_game_state_callbacks
+checkClearMem('levels imported')
 thumby.display.fill(thumby.display.BLACK)
 thumby.display.drawText("Loading...", 6, 16, thumby.display.WHITE)
 thumby.display.show()
 import random
+thumby.display.enableGrayscale()
 checkClearMem('random')
 
 # Define the gameState object
@@ -66,8 +66,13 @@ def get_cat_at_pos(position: Position):
         if p.position.__eq__(position):
             return p
 
+def get_selected_cat():
+    if gameState.select_cat is not None:
+        return gameState.get_selected_cat()
+    return None
+
 # Pass the setter functions to Levels
-set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_cat_at_pos)
+set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_cat_at_pos, get_selected_cat)
 
 selector_sprite= thumby.Sprite(10, 10, (bytearray([120,254,254,255,255,255,255,254,254,120,0,1,1,3,3,3,3,1,1,0]), bytearray([204,0,1,1,0,0,1,1,0,204,0,0,2,2,0,0,2,2,0,0])), 32, 16, key=1)
 catsCave= bytearray([1,0,192,224,225,199,7,7,7,7,199,225,224,192,0,1,0,0,0,1,1,240,248,248,248,248,240,1,1,0,0,0])
@@ -478,6 +483,8 @@ while True:
         if thumby.buttonA.justPressed():
             if dialog.lambda_after:
                 dialog.lambda_after()
+            gameState.pop_dialog()
+        if dialog.decision and thumby.buttonB.justPressed():
             gameState.pop_dialog()
 
     elif gameState.state == 'title':

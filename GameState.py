@@ -1,11 +1,21 @@
-from sys import path as syspath
 import time
+import gc
+def checkClearMem(message: str = ''):
+    gc.collect()
+    print("Free memory (GameState.py):", gc.mem_free(), message)
 
+from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
-from Shared import Cat, Dialog, Position, Shop, Stats, WeaponExp, classEnum, itemDict
-from Levels import Level, cat_sprite, fetch_level, cat, canWalkOn, tileEncumberence
+
+checkClearMem('Starting GameState.py')
+from Shared import Cat, Dialog, Position, Shop, Stats, WeaponExp, classEnum, itemDict, cat, canWalkOn, tileEncumberence, cat_sprite
+checkClearMem('Imported Shared.py')
+from Levels import Level, fetch_level
+checkClearMem('Imported Levels.py')
 import thumbyGrayscale as thumby
+checkClearMem('Imported thumbyGrayscale.py')
 import thumbySaves as thumbySaveData
+checkClearMem('Imported thumbySaves.py')
 thumbySaveData.saveData.setName("CatsEmblem")
 
 # --- CONSTANTS ---
@@ -253,6 +263,23 @@ class GameState:
         elif self.level.number == 3:
             self.load_level(fetch_level(4))
             self.save_game()
+        elif self.level.number == 4:
+            self.load_level(fetch_level(5))
+            self.save_game()
+        elif self.level.number == 5:
+            self.load_level(fetch_level(6))
+            self.save_game()
+        elif self.level.number == 6:
+            self.load_level(fetch_level(7))
+            self.save_game()
+        elif self.level.number == 7 and self.party.length == 5:
+            self.load_level(fetch_level(8))
+            self.save_game()
+        elif self.level.number == 7 or self.level.number == 8:
+            self.load_level(fetch_level(9))
+            self.save_game()
+        elif self.level.number == 9:
+            self.state = 'end'
         else:
             self.state = 'gameover'
 
@@ -279,7 +306,7 @@ class GameState:
         print("Unselecting cat:", selCat.name if selCat else "None")
         if selCat:
             selCat.set_selected(False)
-            if not selCat.exhausted and selCat.moved:
+            if not selCat.exhausted and selCat.moved and not selCat.enemy:
                 selCat.moved = False
                 print("Cat selected state after unselect:", self.lastPos.x, self.lastPos.y)
                 selCat.position = self.lastPos.copy()
@@ -723,7 +750,7 @@ class GameState:
                     return False
                 firstFound = any(conversationNames[0] == unit.name for unit in unitsInRange)
                 secondFound = any(conversationNames[1] == unit.name for unit in unitsInRange)
-                if firstFound and secondFound:
+                if firstFound and secondFound and conversation.condition():
                     return True
             return False
         
