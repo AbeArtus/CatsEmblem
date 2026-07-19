@@ -176,7 +176,7 @@ class GameState:
 
     def start_game(self):
         self.party = [get_cat()]
-        self.load_level(fetch_level(5))
+        self.load_level(fetch_level(1))
 
     def load_next_level(self):
         if self.level.number == 1:
