@@ -100,6 +100,9 @@ def get_render_tile_sprite(tile_type: int, map_x: int, map_y: int, screen_x: int
 
     sprite_data, xFlip, yFlip = get_tile_data(tile_type)
 
+    if sprite_data is None:
+        print(f"Error: No sprite data found for tile type {tile_type}")
+
     if tile_type == 0:
         key = (tile_type, (map_y & 1) == 0)
     elif tile_type == 1:
@@ -155,7 +158,8 @@ def battle(attacker: Cat, defender: Cat):
         attacker.add_exp(defender.stats.max_hp, addDialog)
         return
 
-    defender_ranges = defender.get_weapon().get_range()
+    defender_weapon = defender.get_weapon()
+    defender_ranges = defender_weapon.get_range() if defender_weapon else []
     dx = abs(attacker.position.x - defender.position.x)
     dy = abs(attacker.position.y - defender.position.y)
     if dx + dy in defender_ranges:
@@ -191,6 +195,9 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
     import random
     attackerWeapon = attacker.get_weapon()
 
+    if attackerWeapon is None:
+        return 0
+
     randInt = random.randint(1, 100)
 
     tileEvationBonus = tileEvation.get(gameState.level.map[defender.position.y][defender.position.x], 0)
@@ -217,10 +224,12 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
     log = AttackLog(
         attacker_name=attacker.name,
         attacker_hp=attacker.hp,
+        attacker_max_hp=attacker.stats.max_hp,
         attacker_enemy=attacker.enemy,
         attacker_sprite=attacker.sprite,
         defender_name=defender.name,
         defender_hp=defender.hp,
+        defender_max_hp=defender.stats.max_hp,
         defender_enemy=defender.enemy,
         defender_sprite=defender.sprite,
         damage=damage,
@@ -229,6 +238,7 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
         miss=not attackHit,
         dodge=attackDodge,
         text=f"{'' if attackHit else 'miss'}",
+        static_render_time= 2 if not attackHit or attackDodge or damage == 0 else 0
     )
 
     gameState.combat_log.append(log)
@@ -254,12 +264,15 @@ def calculate_damage(attacker: Cat, defender: Cat):
     # 5 for eah party member adjacenet
     assist = 0
     for member in party :
-        if abs(member.position.x + attacker.position.x) + abs(member.position.y + attacker.position.y) <= 1:
+        if abs(member.position.x - attacker.position.x) + abs(member.position.y - attacker.position.y) <= 1:
             assist += 5
 
-    hasWeaponAdvantage = weaponAdvantages.get(attackerWeapon.type) == defenderWeapon.type
+    if attackerWeapon is None:
+        return 0
+
+    hasWeaponAdvantage = attackerWeapon and defenderWeapon and weaponAdvantages.get(attackerWeapon.type) == defenderWeapon.type or attackerWeapon is not None and defenderWeapon is None
     hasClassAdvantage = classAdvantages.get(attacker.classType) == defender.classType
-    defenderHasWeaponAdvantage = weaponAdvantages.get(defenderWeapon.type) == attackerWeapon.type
+    defenderHasWeaponAdvantage = attackerWeapon and defenderWeapon and weaponAdvantages.get(defenderWeapon.type) == attackerWeapon.type or attackerWeapon is None and defenderWeapon is not None
     defenderHasClassAdvantage = classAdvantages.get(defender.classType) == attacker.classType
     attackerLowHP = attacker.hp <= attacker.stats.max_hp // 4
     defenderLowHP = defender.hp <= defender.stats.max_hp // 4
@@ -340,6 +353,8 @@ def render_map(level):
     selector_sprite = get_selector_sprite()
     thumby.display.fill(thumby.display.WHITE)
 
+    text = None
+
     for y in range(SCREEN_TILES_Y):
         for x in range(SCREEN_TILES_X):
             map_x = gameState.level.viewport.x + x
@@ -366,9 +381,28 @@ def render_map(level):
             if classSprite != None:
                 thumby.display.drawSprite(classSprite)
 
+            if gameState.level.selectorPosition == unit.position:
+                thumby.display.setFont("/lib/font3x5.bin", 3, 5, 1)
+                text = f"{unit.name.upper()} {unit.hp}/{unit.stats.max_hp}"
+
     # Render selector
     selector_sprite.x = (gameState.level.selectorPosition.x - gameState.level.viewport.x) * 8 - 1
     selector_sprite.y = (gameState.level.selectorPosition.y - gameState.level.viewport.y) * 8 - 1
+
+    if text is not None:
+        textLength = len(text) * 4 + 2
+
+        y_offset = 0
+        x_offset = 0
+        if gameState.level.viewport.y == 0:
+            y_offset = 30
+        if gameState.level.viewport.x == 0:
+            x_offset = max(70 - textLength, 0)
+
+        thumby.display.drawFilledRectangle(1 + x_offset, 1 + y_offset, textLength, 8, thumby.display.WHITE)
+        thumby.display.drawText(text, 2 + x_offset, 2 + y_offset, thumby.display.BLACK)
+        thumby.display.setFont("/lib/font5x7.bin", 5, 7, 1)
+
     thumby.display.drawSprite(selector_sprite)
 
 def animate_cats():
@@ -381,6 +415,9 @@ def animate_cats():
 def get_attack_tile(cat: Cat):
     global gameState
 
+    if cat.get_weapon() is None:
+        return None, None
+    
     weapon_ranges = cat.get_weapon().get_range()
     enemy_range = cat.stats.range if (cat.aiType == "searchAndDestroy" and not cat.moved) else 0
     domain = gameState.find_valid_positions(cat, enemy_range)
@@ -425,12 +462,31 @@ while True:
         cat = 4 if attackRange else 0
 
         # Display based on who is attacking
+        middleOfScreen = 36
         if log.attacker_enemy:
             # Enemy is attacking (right side)
             thumby.display.drawText(log.attacker_name, 40, 24, thumby.display.BLACK)
-            thumby.display.drawText(f"HP:{attackerHealth}", 40, 32, thumby.display.BLACK)
+            # thumby.display.drawText(f"HP:{attackerHealth}", 40, 32, thumby.display.BLACK)
+            willOverflow = (log.attacker_max_hp * 2 + 2) >= middleOfScreen
+            for i in range(log.attacker_max_hp):
+                raw_x = 1 + (i * 2)
+                overflow = (raw_x - middleOfScreen) >= -1
+                rel_x = raw_x if not overflow else raw_x - middleOfScreen
+                position = Position(middleOfScreen + rel_x, 32 if not overflow else 36)
+                size_x = 1
+                size_y = 3 if willOverflow else 7
+                thumby.display.drawFilledRectangle(position.x, position.y, size_x, size_y, thumby.display.BLACK if i < attackerHealth else thumby.display.LIGHTGRAY)
             thumby.display.drawText(log.defender_name, 2, 24, thumby.display.DARKGRAY)
-            thumby.display.drawText(f"HP:{defenderHealth}", 2, 32, thumby.display.DARKGRAY)
+            # thumby.display.drawText(f"HP:{defenderHealth}", 2, 32, thumby.display.DARKGRAY)
+            willOverflow = (log.defender_max_hp * 2 + 2) >= 36
+            for i in range(log.defender_max_hp):
+                raw_x = 1 + (i * 2)
+                overflow = raw_x - middleOfScreen >= -1
+                rel_x = raw_x if not overflow else raw_x - middleOfScreen
+                position = Position(rel_x, 32 if not overflow else 36)
+                size_x = 1
+                size_y = 3 if willOverflow else 7
+                thumby.display.drawFilledRectangle(position.x, position.y, size_x, size_y, thumby.display.BLACK if i < defenderHealth else thumby.display.LIGHTGRAY)
             if beep: thumby.display.drawText(f"-{log.damage}", 2, 2, thumby.display.LIGHTGRAY)
             # render the cats
             log.attacker_sprite.x = 56 - cat
@@ -444,9 +500,25 @@ while True:
         else:
             # Party is attacking (right side)
             thumby.display.drawText(log.attacker_name, 2, 24, thumby.display.BLACK)
-            thumby.display.drawText(f"HP:{attackerHealth}", 2, 32, thumby.display.BLACK)
+            willOverflow = (log.attacker_max_hp * 2 + 2) >= middleOfScreen
+            for i in range(log.attacker_max_hp):
+                raw_x = 1 + (i * 2)
+                overflow = raw_x - middleOfScreen >= -1
+                rel_x = raw_x if not overflow else raw_x - middleOfScreen
+                position = Position(rel_x, 32 if not overflow else 36)
+                size_x = 1
+                size_y = 3 if willOverflow else 7
+                thumby.display.drawFilledRectangle(position.x, position.y, size_x, size_y, thumby.display.BLACK if i < attackerHealth else thumby.display.LIGHTGRAY)
             thumby.display.drawText(log.defender_name, 40, 24, thumby.display.DARKGRAY)
-            thumby.display.drawText(f"HP:{defenderHealth}", 40, 32, thumby.display.DARKGRAY)
+            willOverflow = (log.defender_max_hp * 2 + 2) >= middleOfScreen
+            for i in range(log.defender_max_hp):
+                raw_x = 1 + (i * 2)
+                overflow = raw_x - middleOfScreen >= -1
+                rel_x = raw_x if not overflow else raw_x - middleOfScreen
+                position = Position(rel_x + middleOfScreen, 32 if not overflow else 36)
+                size_x = 1
+                size_y = 3 if willOverflow else 7
+                thumby.display.drawFilledRectangle(position.x, position.y, size_x, size_y, thumby.display.BLACK if i < defenderHealth else thumby.display.LIGHTGRAY)
             adjment = (len(str(log.damage)) + 1) * 6
             if beep: thumby.display.drawText(f"-{log.damage}", 71 - adjment, 2, thumby.display.LIGHTGRAY)
             # render the cats
@@ -460,8 +532,10 @@ while True:
                 thumby.display.drawText('dodge' if log.dodge else 'miss', 40, 16, thumby.display.BLACK)
 
         # Animate HP counting down
-        if (frame % 7 == 1): 
-            if current_hp_display <= gameState.combat_log[0].new_hp or current_hp_display <= 0:
+        if (frame % 3 == 1): 
+            if log.static_render_time > 0:
+                log.static_render_time -= 1
+            elif current_hp_display <= gameState.combat_log[0].new_hp or current_hp_display <= 0:
                 gameState.combat_log.pop(0)
                 if len(gameState.combat_log) > 0:
                     current_hp_display = gameState.combat_log[0].old_hp
@@ -576,12 +650,18 @@ while True:
             if gameState.selectedCatId is not None:
                 gameState.cancel_cat_select()
             else:
-                for p in gameState.party:
-                    if not p.exhausted:
-                        if gameState.level.selectorPosition == p.position:
-                            continue
-                        gameState.update_selector_position(p.position.x, p.position.y)
-                        break
+                # cycle through party memebers
+                non_moved_cats = [c for c in gameState.party if not c.moved]
+
+                if len(non_moved_cats) > 0:
+                    current_index = -1
+                    for i, c in enumerate(gameState.party):
+                        if c.position == gameState.level.selectorPosition:
+                            current_index = i
+                            break
+                    next_index = (current_index + 1) % len(non_moved_cats)
+                    next_cat = non_moved_cats[next_index]
+                    gameState.update_selector_position(next_cat.position.x, next_cat.position.y)
 
     elif gameState.state == 'menu':
         if gameState.menu:
@@ -592,11 +672,12 @@ while True:
         selected_cat = gameState.get_selected_cat()
         enemies_in_range = []
 
+        sel_cat_weapon = selected_cat.get_weapon()
         if selected_cat:
             for enemy in gameState.level.enemies:
                 dx = abs(enemy.position.x - selected_cat.position.x)
                 dy = abs(enemy.position.y - selected_cat.position.y)
-                if dx + dy in selected_cat.get_weapon().get_range():
+                if dx + dy in sel_cat_weapon.get_range() if sel_cat_weapon is not None else []:
                     enemies_in_range.append(enemy)
         if gameState.level.selectorPosition == selected_cat.position and len(enemies_in_range) > 0:
             gameState.update_selector_position(enemies_in_range[0].position.x, enemies_in_range[0].position.y)

@@ -301,7 +301,6 @@ class GameState:
         return list(valid_positions)
 
     def update_selector_position(self, x, y):
-        startTime = time.ticks_ms()
         new_x = max(0, min(len(self.level.map[0]) - 1, x))
         new_y = max(0, min(len(self.level.map) - 1, y))
         selCat = self.get_selected_cat()
@@ -691,7 +690,8 @@ class GameState:
             for enemy in self.level.enemies:
                 dx = abs(enemy.position.x - cat.position.x)
                 dy = abs(enemy.position.y - cat.position.y)
-                if dx + dy in cat.get_weapon().get_range():
+                catWeapon = cat.get_weapon()
+                if catWeapon and dx + dy in catWeapon.get_range():
                     return True
             return False
         

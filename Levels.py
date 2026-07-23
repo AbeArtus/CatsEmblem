@@ -190,9 +190,9 @@ class Levels:
 				Shop(
 					Position(7, 11),
 					inventory=[
-						ShopItem(itemDict['Tuna'], 8),
-						ShopItem(itemDict['Stick'], 10),
-						ShopItem(itemDict['Slngsht'], 20)
+						ShopItem(itemDict['Tuna'], 2),
+						ShopItem(itemDict['Stick'], 5),
+						ShopItem(itemDict['Slngsht'], 10)
 					]
 				)
 			]
@@ -220,7 +220,7 @@ class Levels:
 			],
 			number=2,
 			seizePosition=Position(1, 12),
-			startingPositions=[Position(10,1), Position(11,1), Position(10,2)],
+			startingPositions=[Position(11,2), Position(11,1), Position(12,1)],
 			houses=[
 				House(
 					position=Position(2, 1),
@@ -236,6 +236,8 @@ class Levels:
 						right_cats=[npc],
 						currentlyTalking='npc',
 						lambda_after=lambda: give_item(Position(2,1), itemDict['MystPot'])
+					), Dialog(
+						lines=["Recieved","Mystic","Potion"]
 					)],
 					visitCondition=visit_condition
 				),
@@ -318,58 +320,58 @@ class Levels:
 		level = Level(
 			map=get_map(3),
 			enemies=[
-				generate_enemy(2, Position(14, 8), name='mut'),
+				generate_enemy(2, Position(12, 9), name='mut'),
 				generate_enemy(2, Position(3, 9), name='mut'),
-				generate_enemy(2, Position(7, 13), name='mut'),
+				generate_enemy(2, Position(5, 14), name='mut'),
 				generate_enemy(2, Position(9, 4), name='mut'),
-				generate_enemy(2, Position(19, 3), name='mut'),
+				generate_enemy(2, Position(14, 3), name='mut'),
 				mew,
-				generate_enemy(3, Position(17, 1), ai='stand', name='guard', classType='warrior')
+				generate_enemy(3, Position(13, 1), ai='stand', name='guard', classType='warrior')
 			],
 			number=3,
-			startingPositions=[Position(11, 13), Position(12, 14)],
-			seizePosition=Position(17, 1),
+			startingPositions=[Position(10, 13), Position(11, 14)],
+			seizePosition=Position(13, 1),
 			houses=[
 				House(
-					position=Position(17, 8),
+					position=Position(13, 8),
 					preVistedDialogs=[Dialog(
 						lines=["There is","a legendary","cat..."],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(13, 8))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					),
 					Dialog(
 						lines=["that","possesses", "the dna.."],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(13, 8))],
 						left_cats=[npc],
 						currentlyTalking='cat'
 					),
 					Dialog(
 						lines=["of all","species.", "Its name.." ],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(13, 8))],
 						left_cats=[npc],
 						currentlyTalking='cat'
 					),
 					Dialog(
 						lines=["is mew.", "cat must", "save him"],
-						left_cats=[get_cat_at_position(Position(17, 8))],
+						left_cats=[get_cat_at_position(Position(13, 8))],
 						right_cats=[npc],
 						currentlyTalking='cat'
 					)],
-					visitCondition=lambda: get_cat_at_position(Position(17, 8)) is not None and get_cat_at_position(Position(17, 8)).name == 'mew' and can_give_item(Position(17,8)),
+					visitCondition=lambda: get_cat_at_position(Position(13, 8)) is not None and get_cat_at_position(Position(13, 8)).name == 'mew' and can_give_item(Position(13,8)),
 					dialogs=[
 						Dialog(
 							lines=["They","beileved","me huh..."],
-							right_cats=[get_cat_at_position(Position(17, 8))],
+							right_cats=[get_cat_at_position(Position(13, 8))],
 							left_cats=[npc],
 							currentlyTalking='npc',
 						),
 						Dialog(
 							lines=["Take after","my steps","will ya"],
-							right_cats=[get_cat_at_position(Position(17, 8))],
+							right_cats=[get_cat_at_position(Position(13, 8))],
 							left_cats=[npc],
 							currentlyTalking='npc',
-							lambda_after=lambda: (give_item(Position(17,8), itemDict['MstQll']))
+							lambda_after=lambda: (give_item(Position(13,8), itemDict['MstQll']))
 						),
 						Dialog(
 							lines=["Recieved","the mystic","quill"],
@@ -377,7 +379,7 @@ class Levels:
 					],
 					postVisitDialog=[Dialog(
 						lines=["Don't die", "live"],
-						right_cats=[get_cat_at_position(Position(17, 8))],
+						right_cats=[get_cat_at_position(Position(13, 8))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					)]
@@ -442,10 +444,10 @@ class Levels:
 				generate_enemy(2, Position(2, 11), name='pig'),
 				generate_enemy(3, Position(3, 10), name='pig'),
 				bao,
-				generate_enemy(4, Position(3, 9), name='himb', weapon='Spear', classType='warrior', ai='stand')
+				generate_enemy(4, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand')
 			],
 			number=4,
-			seizePosition=Position(3, 9),
+			seizePosition=Position(2, 13),
 			startingPositions=[Position(7,1), Position(6,2), Position(8,2)],
 			houses=[
 				House(
@@ -522,6 +524,16 @@ class Levels:
 					]
 				)
 			],
+			shops=[
+				Shop(
+					position=Position(3, 9),
+					inventory=[
+						ShopItem(itemDict['Bow'], 20),
+						ShopItem(itemDict['EarthTm'], 25),
+						ShopItem(itemDict['Sword'], 20)
+					]
+				)
+			],
 			conversations=[
 				Conversation(
 					dialogs=[
@@ -592,11 +604,11 @@ class Levels:
 				generate_enemy(3, Position(10, 10), name='mut'),
 				generate_enemy(3, Position(12, 8), name='mut'),
 				generate_enemy(4, Position(11, 12), name='mut', weapon='Slngsht'),
-				generate_enemy(4, Position(5, 5), name='mut', weapon='LongBow', classType='sniper'),
-				generate_enemy(4, Position(1, 15), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				generate_enemy(4, Position(5, 5), name='mut', weapon='Bow', classType='sniper'),
+				generate_enemy(4, Position(0, 15), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=5,
-			seizePosition=Position(1, 15),
+			seizePosition=Position(0, 15),
 			startingPositions=[Position(13, 1), Position(14, 2), Position(13, 3), Position(14, 3)],
 			houses=[
 				House(
@@ -604,6 +616,11 @@ class Levels:
 					position=Position(8, 0),
 					preVistedDialogs=[Dialog(
 						lines=["I'll trade","any tuna","for 25g"],
+						right_cats=[get_cat_at_position(Position(8, 0))],
+						left_cats=[npc],
+						currentlyTalking='npc'
+					), Dialog(
+						lines=["I don't","smell any","on you.."],
 						right_cats=[get_cat_at_position(Position(8, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc'
@@ -621,7 +638,7 @@ class Levels:
 						lambda_after=lambda: (take_tuna(Position(8, 0)), modify_bank(25)),
 						decision=True,
 					)],
-					visitCondition=houseCondition
+					visitCondition=houseCondition(Position(8, 0))
 				),
 				House(
 					position=Position(14, 9),
@@ -671,18 +688,18 @@ class Levels:
 				House(
 					position=Position(11, 15),
 					preVistedDialogs=[Dialog(
-						lines=["I heard","of cat","named cat"],
+						lines=["I heard","of a cat","named bao"],
 						left_cats=[get_cat_at_position(Position(11, 15))],
 						right_cats=[bub],
 						currentlyTalking='bub'
 					), Dialog(
-						lines=["I will", "only talk", "to cat"],
+						lines=["I will", "only talk", "to bao"],
 						left_cats=[get_cat_at_position(Position(11, 15))],
 						right_cats=[bub],
 						currentlyTalking='bub'
 					)],
 					dialogs=[Dialog(
-						lines=["Hello","cat, I","am big bub"],
+						lines=["Hello","bao, I","stinky..."],
 						left_cats=[get_cat_at_position(Position(11, 15))],
 						right_cats=[bub],
 						currentlyTalking='bub'
@@ -695,10 +712,10 @@ class Levels:
 					), Dialog(
 						lines=["bub","joined the","party"],
 					)],
-					visitCondition=lambda: get_cat_at_position(Position(11, 15)) is not None and get_cat_at_position(Position(11, 15)).name == 'cat',
+					visitCondition=lambda: get_cat_at_position(Position(11, 15)) is not None and get_cat_at_position(Position(11, 15)).name == 'bao',
 				),
 				House(
-					position=Position(2, 6),
+					position=Position(1, 6),
 					dialogs=[Dialog(
 						lines=["Found","a Sword"],
 						lambda_after=lambda: give_item(Position(2,6), itemDict['Sword']),
@@ -726,16 +743,16 @@ class Levels:
 				generate_enemy(5, Position(16, 3), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=6,
-			seizePosition=Position(1, 15),
-			startingPositions=[Position(2, 13), Position(3, 13), Position(2, 3), Position(3, 3)],
+			seizePosition=Position(16, 3),
+			startingPositions=[Position(2, 13), Position(3, 13), Position(2, 3), Position(3, 3), Position(2, 5)],
 			shops=[
 				Shop(
-					Position(1, 1),
+					Position(7, 13),
 					inventory=[
-						ShopItem(itemDict['Tuna'], 5),
-						ShopItem(itemDict['Sword'], 25),
+						ShopItem(itemDict['Tuna'], 3),
+						ShopItem(itemDict['Sword'], 30),
 						ShopItem(itemDict['MstMeal'], 50),
-						ShopItem(itemDict['Mace'], 12)
+						ShopItem(itemDict['Mace'], 35)
 					]
 				)
 			]
@@ -761,7 +778,7 @@ class Levels:
 			],
 			number=7,
 			seizePosition=Position(16, 1),
-			startingPositions=[Position(2, 13), Position(3, 13), Position(2, 3), Position(3, 3)],
+			startingPositions=[Position(2, 18), Position(3, 18), Position(1, 17), Position(3, 16), Position(4, 17)],
 			shops=[
 				Shop(
 					Position(3, 1),
@@ -775,9 +792,9 @@ class Levels:
 					Position(4, 1),
 					inventory=[
 						ShopItem(itemDict['Spear'], 25),
-						ShopItem(itemDict['Sword'], 25),
-						ShopItem(itemDict['Bow'], 25),
-						ShopItem(itemDict['LongBow'], 40)
+						ShopItem(itemDict['Sword'], 20),
+						ShopItem(itemDict['Repeater'], 30),
+						ShopItem(itemDict['LongBow'], 35)
 					]
 				)
 			],
@@ -817,15 +834,15 @@ class Levels:
 		level = Level(
 			map=get_map(8),
 			enemies=[
-				generate_enemy(2, Position(14, 9), name ='jr'),
-				generate_enemy(1, Position(15, 9), name='mini'),
-				generate_enemy(2, Position(8, 11), name='l'),
-				generate_enemy(3, Position(10, 5), name='wago', weapon='Slngsht'),
-				generate_enemy(3, Position(4, 2), 'stand', name='xl', weapon='Stick')
+				generate_enemy(4, Position(14, 9), name ='jr'),
+				generate_enemy(4, Position(15, 9), name='mini'),
+				generate_enemy(4, Position(8, 11), name='l'),
+				generate_enemy(5, Position(10, 5), name='wago', weapon='Slngsht'),
+				generate_enemy(6, Position(4, 2), ai='stand', name='xl', weapon='Stick')
 			],
 			number=8,
 			seizePosition=Position(4, 2),
-			startingPositions=[Position(16, 3), Position(15, 3)],
+			startingPositions=[Position(16, 3), Position(15, 3), Position(16, 4), Position(15, 4), Position(16, 5)],
 			houses=[
 				House(
 					position=Position(16, 10),

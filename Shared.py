@@ -393,7 +393,7 @@ class Cat:
         for item in self.items:
             if item.type == 'weapon' and item.can_use(self.classType):
                 return item
-        return Item(name="Fists", item_type="weapon", attack=0, accuracy=90, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'])
+        return None
 
     def level_up(self, addDialog: callable):
         import random
@@ -529,10 +529,12 @@ class AttackLog:
             self,
             attacker_name: str,
             attacker_hp: int,
+            attacker_max_hp: int,
             attacker_enemy: bool,
             attacker_sprite: thumby.Sprite,
             defender_name: str,
             defender_hp: int,
+            defender_max_hp: int,
             defender_enemy: bool,
             defender_sprite: thumby.Sprite,
             damage: int,
@@ -541,13 +543,16 @@ class AttackLog:
             miss: bool,
             dodge: bool,
             text: str,
+            static_render_time: int = 0
         ):
         self.attacker_name = attacker_name
         self.attacker_hp = attacker_hp
+        self.attacker_max_hp = attacker_max_hp
         self.attacker_enemy = attacker_enemy
         self.attacker_sprite = attacker_sprite
         self.defender_name = defender_name
         self.defender_hp = defender_hp
+        self.defender_max_hp = defender_max_hp
         self.defender_enemy = defender_enemy
         self.defender_sprite = defender_sprite
         self.damage = damage
@@ -556,6 +561,7 @@ class AttackLog:
         self.miss = miss
         self.dodge = dodge
         self.text = text
+        self.static_render_time = static_render_time
 
 def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
 def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
@@ -570,11 +576,11 @@ def _build_item(item_name: str):
     if item_name == "Slngsht":
         return Item(name="Slngsht", item_type="weapon", attack=1, accuracy=75, range=2, crit=1, allowedClasses=['pupil', 'sniper', 'warrior', 'wizard'], weaponType='repeater')
     if item_name == "LghtngTm":
-        return Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=2, crit=5, allowedClasses=['wizard'], weaponType='lightning')
+        return Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=12, crit=5, allowedClasses=['wizard'], weaponType='lightning')
     if item_name == "WaterTm":
         return Item(name="WaterTm", item_type="weapon", attack=3, accuracy=85, range=12, crit=3, allowedClasses=['wizard'], weaponType='water')
     if item_name == "EarthTm":
-        return Item(name="EarthTm", item_type="weapon", attack=5, accuracy=70, range=1, crit=2, allowedClasses=['wizard'], weaponType='earth')
+        return Item(name="EarthTm", item_type="weapon", attack=5, accuracy=70, range=12, crit=2, allowedClasses=['wizard'], weaponType='earth')
     if item_name == "LongBow":
         return Item(name="LongBow", item_type="weapon", attack=3, accuracy=80, range=3, crit=5, allowedClasses=['sniper'], weaponType='longbow')
     if item_name == "Bow":
@@ -663,7 +669,7 @@ def _build_mew_unit():
         level=3,
         name='mew',
         position=Position(3,1),
-        stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
+        stats=Stats(attack=6, defense=5, max_hp=10, speed=6, luck=5, range=5),
         enemy=True,
         items=[itemDict['Stick']],
         weaponExp=WeaponExp(repeater=10, sword=20)
@@ -675,10 +681,10 @@ def _build_bub_unit():
         sprite=cat_sprite,
         name='bub',
         position=Position(8,1),
-        stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
+        stats=Stats(attack=7, defense=9, max_hp=12, speed=10, luck=10, range=5),
         enemy=False,
         classType='sniper',
-        items=[itemDict['Slngsht']],
+        items=[itemDict['Repeater'], itemDict['Tuna']],
         weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10)
     )
 
@@ -687,12 +693,12 @@ def _build_bao_unit():
         sprite=cat_sprite,
         name='bao',
         position=Position(8,14),
-        stats=Stats(attack=8, defense=5, max_hp=10, speed=10, luck=8, range=6),
+        stats=Stats(attack=9, defense=7, max_hp=12, speed=9, luck=8, range=6),
         level=5,
         enemy=False,
         aiType='stand',
         classType='wizard',
-        items=[itemDict['LghtngTm'], itemDict['Tuna']],
+        items=[itemDict['EarthTm'], itemDict['Tuna']],
         weaponExp=WeaponExp(lightning=60, water=20, earth=35, sword=10, repeater=15)
     )
 
@@ -765,6 +771,7 @@ TILE_WATER_CLIFF = 30
 TILE_WATER_CLIFF_YFLIP = 31
 TILE_WATER_CLIFF_XFLIP = 32
 TILE_WATER_CLIFF_XYFLIP = 33
+TILE_SEIZE = 34
 
 tiles = {
 	TILE_GRASS: {"sprite": (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([0, 64, 0, 64, 4, 0, 4, 0])), "XFLIP": False, "YFLIP": False},
@@ -786,6 +793,7 @@ tiles = {
 	WALL_TOP: {"sprite": (bytearray([127, 127, 127, 127, 127, 127, 127, 1]), bytearray([128, 254, 254, 254, 254, 254, 254, 254])), "XFLIP": False, "YFLIP": False},
 	WALL_SIDE: {"sprite": (bytearray([17, 17, 68, 68, 17, 17, 68, 68]), bytearray([85, 17, 85, 68, 85, 17, 85, 68])), "XFLIP": False, "YFLIP": False},
 	TILE_WATER_CLIFF: {"sprite": (bytearray([0, 1, 3, 7, 15, 31, 63, 127]), bytearray([1, 2, 4, 8, 16, 32, 64, 128])), "XFLIP": False, "YFLIP": False},
+    TILE_SEIZE: {"sprite": (bytearray([255, 127, 127, 127, 127, 127, 127, 255]), bytearray([252, 134, 131, 129, 129, 131, 134, 252])), "XFLIP": False, "YFLIP": False},
 }
 
 _tile_flip_overrides = {
@@ -795,6 +803,7 @@ _tile_flip_overrides = {
     TILE_CLIFF_B_TLBR_YFLIP: (TILE_CLIFFBTLBR, False, True),
     TILE_CLIFF_B_TLBR_XYFLIP: (TILE_CLIFFBTLBR, True, True),
     TILE_CLIFF_TTLBR_XFLIP: (TILE_CLIFF_TTLBR, True, False),
+    TILE_CLIFF_RIGHT_XFLIP: (TILE_CLIFF_RIGHT, True, False),
     TILE_COAST_CORNER_BR_XFLIP: (TILE_COAST_CORNER_BR, True, False),
     TILE_COAST_CORNER_BR_YFLIP: (TILE_COAST_CORNER_BR, False, True),
     TILE_COAST_CORNER_BR_XYFLIP: (TILE_COAST_CORNER_BR, True, True),
@@ -848,6 +857,7 @@ canWalkOn = {
 	TILE_COAST_CORNER_BR_XFLIP: False,
 	TILE_COAST_CORNER_BR_YFLIP: False,
 	TILE_COAST_CORNER_BR_XYFLIP: False,
+    TILE_SEIZE: True,
 }
 
 tileEncumberence = {
