@@ -252,7 +252,7 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
             gameState.party.remove(defender)
     expMultiplier = defender.level / attacker.level
 
-    return max(int(damage * expMultiplier + 0.5), 1)
+    return max(int(damage * expMultiplier + 0.49), 1)
 
 def calculate_damage(attacker: Cat, defender: Cat):
     global gameState
@@ -278,6 +278,7 @@ def calculate_damage(attacker: Cat, defender: Cat):
     defenderLowHP = defender.hp <= defender.stats.max_hp // 4
     # print all of this out cmoon co pitlo font be lazy
     print('')
+    print("    assist bonus: ", assist)
     print("    hasWeaponAdvantage: ", hasWeaponAdvantage)
     print("    hasClassAdvantage: ", hasClassAdvantage)
     print("    defenderHasWeaponAdvantage: ", defenderHasWeaponAdvantage)
@@ -305,6 +306,7 @@ def calculate_damage(attacker: Cat, defender: Cat):
     print("    crit_chance: ", crit_chance)
     print("    randInt: ", randInt)
     if randInt < crit_chance:
+        print("    CRITICAL HIT!")
         bonus_damage += base_damage
 
     print('')

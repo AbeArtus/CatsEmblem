@@ -63,33 +63,19 @@ def get_selected_cat():
 
 checkClearMem("After defining game state callback functions")
 
-def get_stats_for_level(level: int):
-	return Stats(
-		attack=3 + level,
-		defense=2 + level,
-		max_hp=7 + level,
-		speed=2 + level,
-		luck=1 + level,
-		range=3
-	)
-
 def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil'):
 	enemySprite = enemy_sprite()
-	return Cat(
+	e = Cat(
 		sprite=enemySprite,
 		position=position,
 		name=name,
-		selected=False,
-		exhausted=False,
-		stats=get_stats_for_level(level),
 		enemy=True,
-		level=level,
-		next_level_exp=level * 10,
-		exp=0,
 		aiType=ai,
 		items=[itemDict[weapon]],
 		classType=classType
 	)
+	e.add_exp((level - 1) * 20, None)
+	return e
 
 class Level:
 	def __init__(

@@ -67,12 +67,12 @@ class Position:
 class Stats:
     def __init__(
             self,
-            attack: int,
-            defense: int,
-            max_hp: int,
-            speed: int,
-            luck: int,
-            range: int
+            attack: int = 3,
+            defense: int = 2,
+            max_hp: int = 8,
+            speed: int = 3,
+            luck: int = 2,
+            range: int = 3
         ):
         self.attack = attack
         self.defense = defense
@@ -177,14 +177,6 @@ class WeaponExp:
                 if getattr(self, weapon_type) == -1:
                     setattr(self, weapon_type, 0)
 
-def growthRate(name: str):
-    if name == 'mew': return GrowthRates(attack=45, defense=45, max_hp=60, speed=60, luck=30, range=25)
-    if name == 'tac': return GrowthRates(attack=40, defense=40, max_hp=60, speed=60, luck=40, range=20)
-    if name == 'cat': return GrowthRates(attack=45, defense=45, max_hp=50, speed=60, luck=40, range=20)
-    if name == 'bub': return GrowthRates(attack=45, defense=45, max_hp=60, speed=45, luck=60, range=40)
-    if name == 'bao': return GrowthRates(attack=40, defense=60, max_hp=50, speed=60, luck=45, range=40)
-    return GrowthRates(attack=40, defense=40, max_hp=60, speed=60, luck=30, range=20)
-
 class Option:
     def __init__(self, label: str, action: callable, condition: callable = lambda: True):
         self.label: str = label
@@ -254,15 +246,16 @@ class Cat:
             name: str,
             selected: bool=False,
             exhausted: bool=False,
-            stats: Stats | None = None,
+            stats: Stats = None,
             enemy: bool=False,
             level: int=1,
             exp: int=0,
-            next_level_exp: int=10,
+            next_level_exp: int=20,
             aiType: str='stand' or 'searchAndDestroy',
             items: list[Item] | None = None,
             classType: str='pupil' or 'warrior' or 'sniper' or 'wizard',
-            weaponExp: WeaponExp=None
+            weaponExp: WeaponExp=None,
+            growthRates: GrowthRates = None
         ):
         self.id = f"cat_{Cat._id_counter}"  # Generate a sequential ID
         Cat._id_counter += 1
@@ -276,8 +269,8 @@ class Cat:
         self.selected: bool = selected
         self.exhausted: bool = exhausted
         self.name: str = name
-        self.stats: Stats = stats if stats else Stats(attack=5, defense=5, max_hp=10, speed=5, luck=5, range=3)
-        self.growthRates: GrowthRates = growthRate(name) 
+        self.stats: Stats = stats if stats is not None else Stats()
+        self.growthRates: GrowthRates = growthRates if growthRates is not None else GrowthRates()
         self.enemy: bool = enemy
         self.hp: int = self.stats.max_hp  # Initialize HP to max_hp
         self.exp: int = exp
@@ -384,10 +377,15 @@ class Cat:
         nextFrame = (curFrame + 1) % self.sprite.frameCount
         self.sprite.setFrame(nextFrame)
 
-    def add_exp(self, amount, addDialog):
+    def add_exp(self, amount, addDialog: callable | None = None):
+        levels_gained = ((self.exp % 20) + amount) // 20
         self.exp += amount
-        if self.exp >= self.next_level_exp:
+
+        for _ in range(levels_gained):
+            print(f"{self.name} leveled up to {self.level + 1}!")
             self.level_up(addDialog)
+
+        return self
 
     def get_weapon(self):
         for item in self.items:
@@ -395,7 +393,7 @@ class Cat:
                 return item
         return None
 
-    def level_up(self, addDialog: callable):
+    def level_up(self, addDialog: callable | None = None):
         import random
         self.level += 1
         self.next_level_exp += 20
@@ -403,7 +401,7 @@ class Cat:
         RN = random.randint(1, 100)
         CF = random.randint(1, 100)
 
-        if not self.enemy:
+        if not self.enemy and addDialog:
             addDialog([f"{self.name} level up",f"to {self.level}"], self)
         for stat in ['attack', 'defense', 'max_hp', 'speed', 'luck', 'range']:
             RN = (RN + CF) % 100
@@ -415,7 +413,7 @@ class Cat:
                 if CF < (getattr(self.growthRates, stat)):
                     setattr(self.stats, stat, getattr(self.stats, stat) + 1)
                     added += 1
-            if added > 0 and not self.enemy:
+            if added > 0 and not self.enemy and addDialog:
                 currentValue = getattr(self.stats, stat)
                 addDialog([f"{stat} up",f"from {currentValue - added}", f"to {currentValue}!"], self)
     
@@ -644,10 +642,8 @@ def _build_cat_unit():
         sprite=cat_sprite,
         position=Position(2, 4),
         name='cat',
-        selected=False,
-        exhausted=False,
-        stats=Stats(attack=5, defense=3, max_hp=10, speed=8, luck=4, range=4),
-        enemy=False,
+        stats=Stats(attack=4, speed=5, luck=4),
+        growthRates=GrowthRates(attack=45, defense=45, luck=50, range=15),
         items=[itemDict['Stick'], itemDict['Tuna']],
     )
 
@@ -656,51 +652,49 @@ def _build_tac_unit():
         sprite=cat_sprite,
         position=Position(5, 13),
         name='tac',
-        selected=False,
-        exhausted=False,
-        stats=Stats(attack=4, defense=4, max_hp=8, speed=8, luck=4, range=5),
-        enemy=False,
+        stats=Stats(defense=3, speed=4, luck=3),
+        growthRates=GrowthRates(defense=50, speed=70, luck=25, range=25),
         items=[itemDict['Slngsht']]
     )
 
 def _build_mew_unit():
     return Cat(
         sprite=cat_sprite,
-        level=3,
         name='mew',
         position=Position(3,1),
-        stats=Stats(attack=6, defense=5, max_hp=10, speed=6, luck=5, range=5),
-        enemy=True,
+        stats=Stats(attack=5, max_hp=10, speed=4),
         items=[itemDict['Stick']],
-        weaponExp=WeaponExp(repeater=10, sword=20)
-    )
+        weaponExp=WeaponExp(repeater=10, sword=20),
+        growthRates=GrowthRates(attack=50, speed=65, range=15)
+    ).add_exp(40, None)
 
 def _build_bub_unit():
     return Cat(
-        level=6,
         sprite=cat_sprite,
         name='bub',
         position=Position(8,1),
-        stats=Stats(attack=7, defense=9, max_hp=12, speed=10, luck=10, range=5),
+        stats=Stats(attack=4, speed=4, luck=4),
         enemy=False,
         classType='sniper',
         items=[itemDict['Repeater'], itemDict['Tuna']],
+        growthRates=GrowthRates(attack=60, defense=30, max_hp=55, speed=45, luck=40, range=30),
         weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10)
-    )
+    ).add_exp(100, None)
 
 def _build_bao_unit():
     return Cat(
         sprite=cat_sprite,
         name='bao',
         position=Position(8,14),
-        stats=Stats(attack=9, defense=7, max_hp=12, speed=9, luck=8, range=6),
+        stats=Stats(attack=5, defense=3, luck=4, range=6),
         level=5,
         enemy=False,
         aiType='stand',
         classType='wizard',
         items=[itemDict['EarthTm'], itemDict['Tuna']],
+        growthRates=GrowthRates(attack=45, defense=45, max_hp=65, speed=50, luck=50),
         weaponExp=WeaponExp(lightning=60, water=20, earth=35, sword=10, repeater=15)
-    )
+    ).add_exp(80, None)
 
 def _build_npc_unit():
     return Cat(
