@@ -12,8 +12,6 @@ from Levels import Level, fetch_level
 checkClearMem('Imported Levels.py')
 from Shared import Cat, Dialog, Menu, Option, Position, Shop, Stats, WeaponExp, classEnum, itemDict, get_cat, canWalkOn, tileEncumberence, cat_sprite
 checkClearMem('Imported Shared.py')
-import thumbyGrayscale as thumby
-checkClearMem('Imported thumbyGrayscale.py')
 
 _save_data = None
 

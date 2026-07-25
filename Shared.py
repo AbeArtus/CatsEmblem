@@ -349,6 +349,20 @@ class Cat:
         if item.type == 'consumable' and item.effect and 'heal' in item.effect:
             self.hp = min(self.stats.max_hp, self.hp + item.effect['heal'])
             self.items.pop(item_index)
+        if item.type == 'consumable' and item.effect and 'luck' in item.effect:
+            self.stats.luck += item.effect['luck']
+            self.items.pop(item_index)
+        if item.type == 'consumable' and item.effect and 'defense' in item.effect:
+            self.stats.defense += item.effect['defense']
+            self.items.pop(item_index)
+        if item.type == 'consumable' and item.effect and 'attack' in item.effect:
+            self.stats.attack += item.effect['attack']
+            self.items.pop(item_index)
+        if item.type == 'consumable' and item.effect and 'speed' in item.effect:
+            self.stats.speed += item.effect['speed']
+            self.items.pop(item_index)
+        if item.type == 'consumable' and item.effect and 'level' in item.effect:
+            self.add_exp(item.effect['level'] * 20)
 
     def set_position(self, position: Position):
         self.position = position
@@ -561,20 +575,19 @@ class AttackLog:
         self.text = text
         self.static_render_time = static_render_time
 
+def block_sprite(): return thumby.Sprite(8, 8, (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([255, 133, 251, 149, 169, 223, 161, 255])), 32, 16)
 def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
 def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
 
 _item_cache = {}
 
 def _build_item(item_name: str):
-    if item_name == "Tuna":
-        return Item(name="Tuna", item_type="consumable", effect={"heal": 10})
     if item_name == "Stick":
         return Item(name="Stick", item_type="weapon", attack=2, accuracy=80, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'], weaponType='sword')
     if item_name == "Slngsht":
         return Item(name="Slngsht", item_type="weapon", attack=1, accuracy=75, range=2, crit=1, allowedClasses=['pupil', 'sniper', 'warrior', 'wizard'], weaponType='repeater')
     if item_name == "LghtngTm":
-        return Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=12, crit=5, allowedClasses=['wizard'], weaponType='lightning')
+        return Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=2, crit=5, allowedClasses=['wizard'], weaponType='lightning')
     if item_name == "WaterTm":
         return Item(name="WaterTm", item_type="weapon", attack=3, accuracy=85, range=12, crit=3, allowedClasses=['wizard'], weaponType='water')
     if item_name == "EarthTm":
@@ -586,25 +599,56 @@ def _build_item(item_name: str):
     if item_name == "Repeater":
         return Item(name="Repeater", item_type="weapon", attack=3, accuracy=75, range=12, crit=4, allowedClasses=['sniper'], weaponType='repeater')
     if item_name == "Sword":
-        return Item(name="Sword", item_type="weapon", attack=5, accuracy=85, range=1, crit=5, allowedClasses=['warrior', 'pupil'], weaponType='sword')
+        return Item(name="Sword", item_type="weapon", attack=6, accuracy=85, range=1, crit=5, allowedClasses=['warrior', 'pupil'], weaponType='sword')
     if item_name == "Spear":
-        return Item(name="Spear", item_type="weapon", attack=4, accuracy=60, range=2, crit=3, allowedClasses=['warrior'], weaponType='spear')
+        return Item(name="Spear", item_type="weapon", attack=5, accuracy=60, range=2, crit=3, allowedClasses=['warrior'], weaponType='spear')
     if item_name == "Mace":
-        return Item(name="Mace", item_type="weapon", attack=6, accuracy=75, range=12, crit=2, allowedClasses=['warrior'], weaponType='mace')
+        return Item(name="Mace", item_type="weapon", attack=4, accuracy=75, range=12, crit=2, allowedClasses=['warrior'], weaponType='mace')
+    if item_name == "NecTome":
+        return Item(name="NecTome", item_type="weapon", attack=5, accuracy=90, range=12, crit=5, allowedClasses=['wizard'], weaponType='earth')
+    if item_name == "BulTome":
+        return Item(name="BulTome", item_type="weapon", attack=4, accuracy=85, range=3, crit=4, allowedClasses=['wizard'], weaponType='water')
+    if item_name == "MultiShot":
+        return Item(name="MultiShot", item_type="weapon", attack=2, accuracy=80, range=12, crit=3, allowedClasses=['sniper'], weaponType='repeater')
+    if item_name == "Launcher":
+        return Item(name="Launcher", item_type="weapon", attack=3, accuracy=70, range=3, crit=2, allowedClasses=['sniper'], weaponType='longbow')
+    if item_name == "Axe":
+        return Item(name="Axe", item_type="weapon", attack=3, accuracy=75, range=12, crit=4, allowedClasses=['warrior'], weaponType='mace')
+    if item_name == "VoidSwd":
+        return Item(name="VoidSwd", item_type="weapon", attack=7, accuracy=80, range=1, crit=5, allowedClasses=['warrior'], weaponType='sword')
+
+    if item_name == "Tuna":
+        return Item(name="Tuna", item_type="consumable", effect={"heal": 10})
+
     if item_name == "MystPot":
         return Item(name="MystPot", item_type="promote", effect={"promote": "wizard"})
     if item_name == "MstMeal":
         return Item(name="MstMeal", item_type="promote", effect={"promote": "warrior"})
     if item_name == "MstQll":
         return Item(name="MstQll", item_type="promote", effect={"promote": "sniper"})
+
+    if item_name == "MagPowder":
+        return Item(name="MagPowder", item_type="consumable", effect={"level": 1})
+
+    if item_name == "RabFoot":
+        return Item(name="RabFoot", item_type="consumable", effect={"luck": 3})
+    if item_name == "Armor":
+        return Item(name="Armor", item_type="consumable", effect={"defense": 3})
+    if item_name == "PowerRing":
+        return Item(name="PowerRing", item_type="consumable", effect={"attack": 3})
+    if item_name == "NewBal":
+        return Item(name="NewBal", item_type="consumable", effect={"speed": 3})
+
     raise KeyError(item_name)
 
 class LazyItemDict:
     def __contains__(self, key):
         return key in {
-            "Tuna", "Stick", "Slngsht", "LghtngTm", "WaterTm", "EarthTm",
+            "Stick", "Slngsht", "LghtngTm", "WaterTm", "EarthTm",
             "LongBow", "Bow", "Repeater", "Sword", "Spear", "Mace",
-            "MystPot", "MstMeal", "MstQll"
+            "MagPowder", "RabFoot", "Armor", "PowerRing", "NewBal",
+            "NecTome", "BulTome", "MultiShot", "Launcher", "Axe", "VoidSwd",
+            "Tuna" 
         }
 
     def __getitem__(self, key):

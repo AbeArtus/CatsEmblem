@@ -8,10 +8,8 @@ from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
 checkClearMem("Before imports")
-from Shared import Cat, Conversation, Dialog, House, Position, Shop, ShopItem, Stats, enemy_sprite, itemDict
+from Shared import Cat, Conversation, Dialog, House, Position, Shop, ShopItem, enemy_sprite, itemDict
 checkClearMem("Shared imported")
-import thumbyGrayscale as thumby
-checkClearMem("Graysacle imported")
 
 _add_to_party = None
 _update_bank = None
@@ -200,8 +198,8 @@ class Levels:
 				generate_enemy(1, Position(9, 8), name='mut'),
 				generate_enemy(2, Position(11, 9), name='mut'),
 				generate_enemy(2, Position(2, 6), name='mut'),
-				generate_enemy(2, Position(3, 13), name='mut'),
-				generate_enemy(2, Position(4, 11), name='mut', weapon='Slngsht'),
+				generate_enemy(3, Position(3, 13), name='mut'),
+				generate_enemy(3, Position(4, 11), name='mut', weapon='Slngsht'),
 				generate_enemy(3, Position(1, 12), ai='stand', name='guy', classType='warrior', )
 			],
 			number=2,
@@ -310,9 +308,9 @@ class Levels:
 				generate_enemy(2, Position(3, 9), name='mut'),
 				generate_enemy(2, Position(5, 14), name='mut'),
 				generate_enemy(2, Position(9, 4), name='mut'),
-				generate_enemy(2, Position(14, 3), name='mut'),
+				generate_enemy(3, Position(14, 3), name='mut'),
 				mew,
-				generate_enemy(3, Position(13, 1), ai='stand', name='guard', classType='warrior')
+				generate_enemy(4, Position(13, 1), ai='stand', name='guard', classType='warrior')
 			],
 			number=3,
 			startingPositions=[Position(10, 13), Position(11, 14)],
@@ -357,10 +355,10 @@ class Levels:
 							right_cats=[get_cat_at_position(Position(13, 8))],
 							left_cats=[npc],
 							currentlyTalking='npc',
-							lambda_after=lambda: (give_item(Position(13,8), itemDict['MstQll']))
+							lambda_after=lambda: (give_item(Position(13,8), itemDict['MstMeal']))
 						),
 						Dialog(
-							lines=["Recieved","the mystic","quill"],
+							lines=["Recieved","the mystic","meal"],
 						)
 					],
 					postVisitDialog=[Dialog(
@@ -427,10 +425,10 @@ class Levels:
 			enemies=[
 				generate_enemy(2, Position(0, 4), name='pig'),
 				generate_enemy(3, Position(2, 9), name='snips', weapon='LongBow', classType='sniper'),
-				generate_enemy(2, Position(2, 11), name='pig'),
-				generate_enemy(3, Position(3, 10), name='pig'),
+				generate_enemy(3, Position(2, 11), name='pig'),
+				generate_enemy(4, Position(3, 10), name='pig'),
 				bao,
-				generate_enemy(4, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand')
+				generate_enemy(5, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand')
 			],
 			number=4,
 			seizePosition=Position(2, 13),
@@ -586,12 +584,12 @@ class Levels:
 			map=get_map(5),
 			enemies=[
 				generate_enemy(3, Position(2, 6), name='mut'),
-				generate_enemy(3, Position(9, 4), name='mut'),
+				generate_enemy(4, Position(9, 4), name='mut'),
 				generate_enemy(3, Position(10, 10), name='mut'),
-				generate_enemy(3, Position(12, 8), name='mut'),
-				generate_enemy(4, Position(11, 12), name='mut', weapon='Slngsht'),
-				generate_enemy(4, Position(5, 5), name='mut', weapon='Bow', classType='sniper'),
-				generate_enemy(4, Position(0, 15), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				generate_enemy(4, Position(12, 8), name='mut'),
+				generate_enemy(5, Position(11, 12), name='mut', weapon='Slngsht'),
+				generate_enemy(5, Position(5, 5), name='mut', weapon='Bow', classType='sniper'),
+				generate_enemy(6, Position(0, 15), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=5,
 			seizePosition=Position(0, 15),
@@ -719,14 +717,14 @@ class Levels:
 			map=get_map(6),
 			enemies=[
 				generate_enemy(3, Position(6, 8), name='mut'),
-				generate_enemy(3, Position(8, 7), name='mut'),
+				generate_enemy(4, Position(8, 7), name='mut'),
 				generate_enemy(3, Position(7, 13), name='mut'),
-				generate_enemy(3, Position(7, 3), name='mut'),
-				generate_enemy(4, Position(13, 13), name='mut', weapon='Slngsht'),
-				generate_enemy(4, Position(11, 8), name='mut', weapon='LongBow', classType='sniper'),
-				generate_enemy(4, Position(15, 8), name='mut', weapon='LghtngTm', classType='warrior'),
+				generate_enemy(4, Position(7, 3), name='mut'),
+				generate_enemy(5, Position(13, 13), name='mut', weapon='Slngsht'),
+				generate_enemy(5, Position(11, 8), name='mut', weapon='LongBow', classType='sniper'),
+				generate_enemy(6, Position(15, 8), name='mut', weapon='LghtngTm', classType='warrior'),
 				generate_enemy(5, Position(17, 8), name='mut', weapon='LghtngTm', classType='wizard'),
-				generate_enemy(5, Position(16, 3), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				generate_enemy(7, Position(16, 3), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=6,
 			seizePosition=Position(16, 3),
@@ -752,22 +750,22 @@ class Levels:
 		level = Level(
 			map=get_map(7),
 			enemies=[
-				generate_enemy(3, Position(2, 4), name='mut'),
-				generate_enemy(3, Position(2, 10), name='mut'),
-				generate_enemy(3, Position(8, 4), name='mut'),
-				generate_enemy(3, Position(10, 14), name='mut'),
-				generate_enemy(4, Position(9, 18), name='mut', weapon='Slngsht'),
-				generate_enemy(4, Position(17, 13), name='mut', weapon='LongBow', classType='sniper'),
-				generate_enemy(4, Position(12, 1), name='mut', weapon='LghtngTm', classType='warrior'),
-				generate_enemy(5, Position(11, 1), name='mut', weapon='LghtngTm', classType='wizard'),
-				generate_enemy(5, Position(16, 1), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				generate_enemy(4, Position(9, 7), name='mut'),
+				generate_enemy(3, Position(10, 8), name='mut'),
+				generate_enemy(4, Position(2, 8), name='mut'),
+				generate_enemy(5, Position(1, 8), name='mut'),
+				generate_enemy(4, Position(6, 11), name='mut', weapon='Slngsht'),
+				generate_enemy(5, Position(2, 2), name='mut', weapon='LongBow', classType='sniper'),
+				generate_enemy(6, Position(10, 2), name='mut', weapon='Spear', classType='warrior'),
+				generate_enemy(7, Position(8, 2), name='mut', weapon='LghtngTm', classType='wizard'),
+				generate_enemy(8, Position(9, 1), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=7,
-			seizePosition=Position(16, 1),
-			startingPositions=[Position(2, 18), Position(3, 18), Position(1, 17), Position(3, 16), Position(4, 17)],
+			seizePosition=Position(9, 1),
+			startingPositions=[Position(7, 15), Position(9, 15), Position(8, 14), Position(9, 13), Position(10, 14)],
 			shops=[
 				Shop(
-					Position(3, 1),
+					Position(1, 0),
 					inventory=[
 						ShopItem(itemDict['Tuna'], 5),
 						ShopItem(itemDict['LghtngTm'], 30),
@@ -775,7 +773,7 @@ class Levels:
 						ShopItem(itemDict['EarthTm'], 30)
 					]
 				), Shop(
-					Position(4, 1),
+					Position(3, 0),
 					inventory=[
 						ShopItem(itemDict['Spear'], 25),
 						ShopItem(itemDict['Sword'], 20),
@@ -785,26 +783,26 @@ class Levels:
 				)
 			],
 			houses=[House(
-					position=Position(1, 1),
+					position=Position(1, 12),
 					dialogs=[Dialog(
 						lines=["I heard","there is","a wizard"],
-						left_cats=[get_cat_at_position(Position(1, 1))],
+						left_cats=[get_cat_at_position(Position(1, 12))],
 						right_cats=[npc],
 						currentlyTalking='npc'
 					)],
 				), House(
-					position=Position(17, 15),
+					position=Position(5, 7),
 					dialogs=[Dialog(
 						lines=["I heard","there is","a wizard"],
-						left_cats=[get_cat_at_position(Position(17, 15))],
+						left_cats=[get_cat_at_position(Position(5, 7))],
 						right_cats=[npc],
 						currentlyTalking='npc'
 					)]
 				), House(
-					position=Position(16, 1),
+					position=Position(2, 0),
 					dialogs=[Dialog(
 						lines=["I heard","there is","a wizard"],
-						left_cats=[get_cat_at_position(Position(16, 1))],
+						left_cats=[get_cat_at_position(Position(2, 0))],
 						right_cats=[npc],
 						currentlyTalking='npc'
 					)]
@@ -820,11 +818,11 @@ class Levels:
 		level = Level(
 			map=get_map(8),
 			enemies=[
-				generate_enemy(4, Position(14, 9), name ='jr'),
-				generate_enemy(4, Position(15, 9), name='mini'),
-				generate_enemy(4, Position(8, 11), name='l'),
-				generate_enemy(5, Position(10, 5), name='wago', weapon='Slngsht'),
-				generate_enemy(6, Position(4, 2), ai='stand', name='xl', weapon='Stick')
+				generate_enemy(6, Position(14, 9), name ='jr'),
+				generate_enemy(7, Position(15, 9), name='mini'),
+				generate_enemy(7, Position(8, 11), name='l'),
+				generate_enemy(8, Position(10, 5), name='wago', weapon='Slngsht'),
+				generate_enemy(9, Position(4, 2), ai='stand', name='xl', weapon='Stick')
 			],
 			number=8,
 			seizePosition=Position(4, 2),
@@ -859,17 +857,17 @@ class Levels:
 		level = Level(
 			map=get_map(9),
 			enemies=[
-				generate_enemy(3, Position(15, 16), name='mut'),
-				generate_enemy(3, Position(16, 13), name='mut'),
-				generate_enemy(3, Position(17, 13), name='mut'),
-				generate_enemy(3, Position(5, 2), name='mut'),
-				generate_enemy(5, Position(13, 5), name='mut', weapon='Repeater', classType='sniper'),
-				generate_enemy(5, Position(11, 11), name='mut', weapon='Slngsht', classType='sniper'),
-				generate_enemy(4, Position(3, 7), name='mut', weapon='Slngsht'),
-				generate_enemy(5, Position(18, 2), name='mut', weapon='LghtngTm', classType='wizard'),
-				generate_enemy(5, Position(14, 2), name='mut', weapon='LongBow', classType='sniper'),
-				generate_enemy(5, Position(16, 2), name='mut', weapon='LghtngTm', classType='warrior'),
-				generate_enemy(5, Position(16, 0), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				generate_enemy(4, Position(15, 16), name='mut'),
+				generate_enemy(5, Position(16, 13), name='mut'),
+				generate_enemy(4, Position(17, 13), name='mut'),
+				generate_enemy(5, Position(5, 2), name='mut'),
+				generate_enemy(6, Position(13, 5), name='mut', weapon='Repeater', classType='sniper'),
+				generate_enemy(7, Position(11, 11), name='mut', weapon='Slngsht', classType='sniper'),
+				generate_enemy(7, Position(3, 7), name='mut', weapon='Slngsht'),
+				generate_enemy(8, Position(18, 2), name='mut', weapon='LghtngTm', classType='wizard'),
+				generate_enemy(8, Position(14, 2), name='mut', weapon='LongBow', classType='sniper'),
+				generate_enemy(8, Position(16, 2), name='mut', weapon='LghtngTm', classType='warrior'),
+				generate_enemy(9, Position(16, 0), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=9,
 			seizePosition=Position(16, 0),

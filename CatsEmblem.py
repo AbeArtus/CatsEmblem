@@ -248,6 +248,15 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
     if defender.hp <= 0:
         if defender in gameState.level.enemies:
             gameState.level.enemies.remove(defender)
+            additionalChance = attacker.stats.luck + attacker.stats.speed + attacker.stats.attack - defender.stats.luck - defender.stats.speed - defender.stats.defense
+            randInt = random.randint(1, 100)
+            attackingInRange = attackerWeapon.range == 1
+            if randInt <= (40 + additionalChance) and attackingInRange:
+                gold = random.randint(1, int(defender.level * 1.5))
+                gameState.add_dialog(Dialog(
+                    lines=[f"Looted {gold} ", "gold!"],
+                    lambda_after=lambda: update_bank(gold)
+                ))
         if defender in gameState.party:
             gameState.party.remove(defender)
     expMultiplier = defender.level / attacker.level
