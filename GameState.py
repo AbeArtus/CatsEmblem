@@ -1,17 +1,11 @@
-import time
 import gc
-def checkClearMem(message: str = ''):
-    gc.collect()
-    print("Free memory (GameState.py):", gc.mem_free(), message)
-
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
-checkClearMem('Starting GameState.py')
-from Levels import Level, fetch_level
-checkClearMem('Imported Levels.py')
-from Shared import Cat, Dialog, Menu, Option, Position, Shop, Stats, WeaponExp, classEnum, itemDict, get_cat, canWalkOn, tileEncumberence, cat_sprite
+from Shared import checkClearMem, fetch_level, Cat, Dialog, Menu, Option, Position, Shop, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite, Level
 checkClearMem('Imported Shared.py')
+from MapData import canWalkOn, tileEncumberence
+checkClearMem('Imported MapData.py')
 
 _save_data = None
 
@@ -31,8 +25,8 @@ SCREEN_TILES_Y = 5
 class GameState:
     def __init__(
             self,
-            level: Level | None = None,
-            party: list[Cat] | None = None,
+            level=None,
+            party=None,
             state='title',
         ):
         self.bank = 0
@@ -62,23 +56,16 @@ class GameState:
         saveData.save()
 
     def load_game(self):
-        """Load the saved game state from persistent storage."""
-        print("Loading game state...")
         saveData = get_save_data()
         self.bank = saveData.getItem("gameState-bank")
-        print(f"Loaded bank: {self.bank}")
         
         party_names: list[str] = saveData.getItem("gameState-party")
-        print(f"Loaded party names: {party_names}")
         
         party = []
         for cat_name in party_names:
-            print(f"Loading cat: {cat_name}")
             cat_stats = saveData.getItem(f"{cat_name}_stats")
-            print(f"Loaded stats for {cat_name}: {cat_stats}")
             
             cat_items_names = saveData.getItem(f"{cat_name}_items")
-            print(f"Loaded items for {cat_name}: {cat_items_names}")
             
             if len(cat_stats) == 21:
                 stats = Stats(
@@ -89,24 +76,19 @@ class GameState:
                     luck=cat_stats[4],
                     range=cat_stats[5],
                 )
-                print(f"Stats for {cat_name}: {stats}")
                 
                 level = cat_stats[6]
                 exp = cat_stats[7]
                 next_level_exp = cat_stats[8]
                 position = Position(cat_stats[9], cat_stats[10])
-                print(f"Level: {level}, EXP: {exp}, Next Level EXP: {next_level_exp}, Position: {position}")
                 
                 items = [itemDict[item_name] for item_name in cat_items_names if item_name in itemDict]
-                print(f"Items for {cat_name}: {items}")
-                
-                print(f"Class ID for {cat_name}: {cat_stats[11]}")
+
                 classType = 'pupil'
                 for key, value in classEnum.items():
                     if value == cat_stats[11]:
                         classType = key
                         break
-                print(f"Class type for {cat_name}: {classType}")
                 
                 weaponExp = WeaponExp(
                     sword=cat_stats[12],
@@ -119,7 +101,6 @@ class GameState:
                     mace=cat_stats[19],
                     spear=cat_stats[20]
                 )
-                print(f"Weapon experience for {cat_name}: {weaponExp}")
                 
                 loadedCat = Cat(
                     sprite=cat_sprite,
@@ -133,20 +114,16 @@ class GameState:
                     classType=classType,
                     weaponExp=weaponExp
                 )
-                print(f"Loaded cat: {loadedCat}")
                 party.append(loadedCat)
         
         self.party = party
-        print(f"Final party: {self.party}")
         
         level_number = saveData.getItem("gameState-level-number")
-        print(f"Loaded level number: {level_number}")
 
         nextLevel = fetch_level(level_number)
         self.load_level(nextLevel)
 
     def has_saved_game(self):
-        """Check if a saved game exists."""
         saveData = get_save_data()
         return (
             saveData.hasItem("gameState-level-number")
@@ -165,12 +142,24 @@ class GameState:
             return
         for i, p in enumerate(self.party):
             p.set_position(level.startingPositions[i])
-            p.set_exhausted(False)
-            p.set_selected(False)
-            p.moved = False
-            p.set_hp(p.stats.max_hp)
+            p.restore_state()
         self.level = level
         self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
+
+    def set_state(self, new_state: str):
+        self.state = new_state
+        if new_state == 'map':
+            self.cancel_cat_select()
+        elif new_state == 'enemy-turn':
+            for cat in self.party:
+                cat.set_exhausted(False)
+                cat.set_moved(False)
+            self.current_turn = 'enemy'
+        elif self.state == 'enemy-turn' and new_state == 'map':
+            for cat in self.party:
+                cat.set_exhausted(False)
+                cat.set_moved(False)
+            self.current_turn = 'player'
 
     def start_game(self):
         self.party = [get_cat()]
@@ -214,11 +203,9 @@ class GameState:
             self.dialog.pop(0)
 
     def select_cat(self, cat: Cat):
-        print("Selecting cat:", cat.name)
         selCat = self.get_selected_cat()
         if selCat:
             selCat.set_selected(False)
-            print("Cat selected state after unselect:", self.lastPos.x, self.lastPos.y)
             selCat.position = self.lastPos.copy()
         self.lastPos = self.level.selectorPosition.copy()
         cat.set_selected(True)
@@ -226,12 +213,10 @@ class GameState:
 
     def cancel_cat_select(self):
         selCat = self.get_selected_cat()
-        print("Unselecting cat:", selCat.name if selCat else "None")
         if selCat:
             selCat.set_selected(False)
             if not selCat.exhausted and selCat.moved and not selCat.enemy:
                 selCat.moved = False
-                print("Cat selected state after unselect:", self.lastPos.x, self.lastPos.y)
                 selCat.position = self.lastPos.copy()
                 GameState.update_selector_position(self, self.lastPos.x, self.lastPos.y)
         self.cached_domain = None
@@ -245,10 +230,11 @@ class GameState:
         return None
     
     def find_valid_positions(self, cat: Cat, range: int):
-        startTime = time.ticks_ms()
+        map_width = len(self.level.map[0])
+        map_height = len(self.level.map)
 
         def is_walkable(position):
-            if not (0 <= position.x < len(self.level.map[0]) and 0 <= position.y < len(self.level.map)):
+            if not (0 <= position.x < map_width and 0 <= position.y < map_height):
                 return False
             tile = self.level.map[position.y][position.x]
             return tile in canWalkOn and canWalkOn[tile]
@@ -258,6 +244,12 @@ class GameState:
                 if unit.id != cat.id and unit.position == position:
                     return unit
             return None
+
+        def is_barrier(position):
+            for blockade in self.level.blockades:
+                if position in blockade.positions and not blockade.cleared:
+                    return True
+            return False
 
         visited = set()
         valid_positions = set()
@@ -278,6 +270,9 @@ class GameState:
             occupied_by_enemy = occupying_unit is not None and occupying_unit.enemy != cat.enemy
             occupied_by_ally = occupying_unit is not None and occupying_unit.enemy == cat.enemy
 
+            if is_barrier(current_pos):
+                continue
+
             # Allies can be passed through but cannot be a final standing tile.
             if occupied_by_enemy:
                 continue
@@ -285,12 +280,15 @@ class GameState:
                 valid_positions.add(current_pos)
 
             if remaining_range > 0:
-                neighbors = [
-                    Position(current_pos.x + 1, current_pos.y),
-                    Position(current_pos.x - 1, current_pos.y),
-                    Position(current_pos.x, current_pos.y + 1),
-                    Position(current_pos.x, current_pos.y - 1),
-                ]
+                neighbors = []
+                if current_pos.x >= cat.position.x:
+                    neighbors.append(Position(current_pos.x + 1, current_pos.y))
+                if current_pos.x <= cat.position.x:
+                    neighbors.append(Position(current_pos.x - 1, current_pos.y))
+                if current_pos.y >= cat.position.y:
+                    neighbors.append(Position(current_pos.x, current_pos.y + 1))
+                if current_pos.y <= cat.position.y:
+                    neighbors.append(Position(current_pos.x, current_pos.y - 1))
                 for neighbor in neighbors:
                     if neighbor not in visited and is_walkable(neighbor):
                         encumbrance = tileEncumberence.get(self.level.map[neighbor.y][neighbor.x], 1)
@@ -298,14 +296,34 @@ class GameState:
 
         return list(valid_positions)
 
+    def end_turn(self):
+        if len(self.level.enemies) == 0:
+            for cat in self.party:
+                cat.set_exhausted(False)
+                cat.set_moved(False)
+        elif self.state == 'enemy-turn':
+            self.set_state('map')
+            self.add_dialog(Dialog(
+                lines=["Player Turn"],
+            ))
+        else:
+            self.set_state('enemy-turn')
+            self.add_dialog(Dialog(
+                lines=["Enemy Turn"],
+            ))
+
     def update_selector_position(self, x, y):
         new_x = max(0, min(len(self.level.map[0]) - 1, x))
         new_y = max(0, min(len(self.level.map) - 1, y))
         selCat = self.get_selected_cat()
         if selCat and self.cached_domain:
             if Position(new_x, new_y) not in self.cached_domain:
-                print("Position not in domain:", new_x, new_y)
                 return
+
+        if selCat:
+            for blockade in self.level.blockades:
+                if Position(new_x, new_y) in blockade.positions and not blockade.cleared:
+                    return
 
         self.level.selectorPosition.x = new_x
         self.level.selectorPosition.y = new_y
@@ -611,7 +629,6 @@ class GameState:
 
     def open_unit_menu(self, option_index=0):
         selectedCat = self.get_selected_cat()
-        print("opening unit menu, setting lastPos", self.lastPos.x, self.lastPos.y)
 
         def exit_menu():
             self.state = 'map'
@@ -737,6 +754,31 @@ class GameState:
                     self.level.conversations.remove(conversation)
                     break
 
+        def can_press():
+            cat = self.get_selected_cat()
+            if not cat:
+                return False
+            for button in self.level.buttons:
+                if button.position == cat.position and button.can_press():
+                    return True
+            return False
+
+        def press_action():
+            cat = self.get_selected_cat()
+            if not cat:
+                return
+            for button in self.level.buttons:
+                if button.position == cat.position and button.can_press():
+                    button.press()
+                    cat.set_exhausted(True)
+                    cat.set_moved(True)
+                    self.add_dialog(Dialog(
+                        left_cats=[cat],
+                        currentlyTalking=cat.name,
+                        lines=["*pressed the", "button*"],
+                    ))
+                    break
+
         menu_title = f"{selectedCat.name} hp:{selectedCat.hp}" if selectedCat else "Unit Menu"
         self.enter_menu(menu = Menu(
             options=[[
@@ -748,6 +790,10 @@ class GameState:
                     label= "Fight",
                     action= fight_action,
                     condition= can_attack
+                ), Option(
+                    label="Press",
+                    action= press_action,
+                    condition= can_press
                 ), Option(
                     label= "Move",
                     action= move_action,

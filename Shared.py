@@ -1,12 +1,12 @@
+from sys import path as syspath
+import thumbyGrayscale as thumby
 import gc
 
 def checkClearMem(message: str = ''):
     gc.collect()
     print("Free memory (Shared.py):", gc.mem_free(), message)
 
-from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
-import thumbyGrayscale as thumby
 
 classEnum = {
     'pupil': 0,
@@ -15,17 +15,7 @@ classEnum = {
     'wizard': 3
 }
 
-weaponAdvantages = {
-    'sword': 'mace',
-    'spear': 'sword',
-    'mace': 'spear',
-    'longbow': 'bow',
-    'bow': 'repeater',
-    'repeater': 'longbow',
-    'lightning': 'water',
-    'water': 'earth',
-    'earth': 'lightning'
-}
+from Items import Item, itemDict
 
 _class_overlay_data = None
 
@@ -62,7 +52,7 @@ class Position:
         return hash((self.x, self.y))
 
     def copy(self):
-        return Position(self.x,self.y)
+        return Position(self.x, self.y)
 
 class Stats:
     def __init__(
@@ -81,15 +71,16 @@ class Stats:
         self.luck = luck
         self.range = range
 
+
 class GrowthRates:
     def __init__(
             self,
-            attack: int=40,
-            defense: int=40,
-            max_hp: int=60,
-            speed: int=60,
-            luck: int=30,
-            range: int=20
+            attack: int = 40,
+            defense: int = 40,
+            max_hp: int = 60,
+            speed: int = 60,
+            luck: int = 30,
+            range: int = 20
         ):
         self.attack = attack
         self.defense = defense
@@ -98,43 +89,18 @@ class GrowthRates:
         self.luck = luck
         self.range = range
 
-class Item:
-    def __init__(self, name: str, item_type: str, effect=None, attack=0, accuracy=0, range=1, crit=0, allowedClasses: list[str] | None = None, weaponType: str=None):
-        self.name = name
-        self.type = item_type
-        self.effect = effect
-        self.attack = attack
-        self.accuracy = accuracy
-        self.range = range
-        self.crit = crit
-        self.allowedClasses = allowedClasses if allowedClasses else ['pupil']
-        self.weaponType: str = weaponType
-
-    def can_use(self, classType: str):
-        return classType in self.allowedClasses
-
-    def can_counter(self, other_weapon_type: str):
-        if self.weaponType in weaponAdvantages:
-            return weaponAdvantages[self.weaponType] == other_weapon_type
-        return False
-
-    def get_range(self):
-        if self.range == 12:
-            return [1,2]
-        return [self.range]
-
 class WeaponExp:
     def __init__(
             self,
-            sword: int=0,
-            repeater: int=0,
-            longbow: int=-1,
-            bow: int=-1,
-            lightning: int=-1,
-            water: int=-1,
-            earth: int=-1,
-            mace: int=-1,
-            spear: int=-1
+            sword: int = 0,
+            repeater: int = 0,
+            longbow: int = -1,
+            bow: int = -1,
+            lightning: int = -1,
+            water: int = -1,
+            earth: int = -1,
+            mace: int = -1,
+            spear: int = -1
         ):
         self.sword = sword
         self.repeater = repeater
@@ -165,26 +131,26 @@ class WeaponExp:
             return 0.15
         else:
             return 0.20
+
     def increase_exp(self, weapon_type: str, amount: int = 1):
         if hasattr(self, weapon_type):
             current_exp = getattr(self, weapon_type)
             if current_exp >= 0:
                 setattr(self, weapon_type, current_exp + amount)
-                
-    def add_weapons(self, weapon_types: list[str]):
+    def add_weapons(self, weapon_types):
         for weapon_type in weapon_types:
             if hasattr(self, weapon_type):
                 if getattr(self, weapon_type) == -1:
                     setattr(self, weapon_type, 0)
 
 class Option:
-    def __init__(self, label: str, action: callable, condition: callable = lambda: True):
-        self.label: str = label
-        self.action: callable = action
-        self.condition: callable = condition
+    def __init__(self, label, action, condition=lambda: True):
+        self.label = label
+        self.action = action
+        self.condition = condition
 
 class Menu:
-    def __init__(self, options: list[list[Option]], title: list[function[str]] | None = None, option_index: int = 0, menu_index: int = 0, leave_action: function | None = None):
+    def __init__(self, options, title=None, option_index=0, menu_index=0, leave_action=None):
         self.options = options
         self.title = title if title else [lambda: ""]
         self.option_index = option_index
@@ -218,45 +184,47 @@ class Menu:
             valid_options = self.get_options()
             if valid_options:
                 valid_options[self.option_index].action()
-        
+
         elif thumby.buttonB.justPressed():
             if self.leave_action:
                 self.leave_action()
 
     def render(self):
-        thumby.display.fill(thumby.display.BLACK)
+        thumby.display.fill(thumby.display.WHITE)
 
         if self.title and self.menu_index < len(self.title):
-            thumby.display.drawText(self.title[self.menu_index](), 2, 0, thumby.display.LIGHTGRAY)
+            thumby.display.drawText(self.title[self.menu_index](), 2, 0, thumby.display.DARKGRAY)
 
         visible_options, offset = self.get_visible_options()
         for i, option in enumerate(visible_options):
-            selected = thumby.display.WHITE if i + offset == self.option_index else thumby.display.DARKGRAY
+            selected = thumby.display.BLACK if i + offset == self.option_index else thumby.display.DARKGRAY
             if i + offset == self.option_index:
-                thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.WHITE)
-            thumby.display.drawText(option.label, 2, 8 + i * 8, selected)
+                thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.BLACK)
+                thumby.display.drawRectangle(1, 10 + i * 8, 1, 3, thumby.display.BLACK)
+            thumby.display.drawText(option.label, 3, 8 + i * 8, selected)
 
 
 class Cat:
     _id_counter = 0  # Class variable for unique IDs
+
     def __init__(
-            self,
-            sprite,
-            position: Position,
-            name: str,
-            selected: bool=False,
-            exhausted: bool=False,
-            stats: Stats = None,
-            enemy: bool=False,
-            level: int=1,
-            exp: int=0,
-            next_level_exp: int=20,
-            aiType: str='stand' or 'searchAndDestroy',
-            items: list[Item] | None = None,
-            classType: str='pupil' or 'warrior' or 'sniper' or 'wizard',
-            weaponExp: WeaponExp=None,
-            growthRates: GrowthRates = None
-        ):
+        self,
+        sprite,
+        position,
+        name,
+        selected=False,
+        exhausted=False,
+        stats=None,
+        enemy=False,
+        level=1,
+        exp=0,
+        next_level_exp=20,
+        aiType='stand',
+        items=None,
+        classType='pupil',
+        weaponExp=None,
+        growthRates=None
+    ):
         self.id = f"cat_{Cat._id_counter}"  # Generate a sequential ID
         Cat._id_counter += 1
         self._sprite = None
@@ -265,23 +233,23 @@ class Cat:
             self._sprite_factory = sprite
         else:
             self._sprite = sprite
-        self.position: Position = position
-        self.selected: bool = selected
-        self.exhausted: bool = exhausted
-        self.name: str = name
-        self.stats: Stats = stats if stats is not None else Stats()
-        self.growthRates: GrowthRates = growthRates if growthRates is not None else GrowthRates()
-        self.enemy: bool = enemy
-        self.hp: int = self.stats.max_hp  # Initialize HP to max_hp
-        self.exp: int = exp
+        self.position = position
+        self.selected = selected
+        self.exhausted = exhausted
+        self.name = name
+        self.stats = stats if stats is not None else Stats()
+        self.growthRates = growthRates if growthRates is not None else GrowthRates()
+        self.enemy = enemy
+        self.hp = self.stats.max_hp
+        self.exp = exp
         self.moved = False
-        self.level: int = level
-        self.next_level_exp: int = next_level_exp
-        self.aiType: str = aiType  # 'stand' or 'searchAndDestroy'
-        self.items: list[Item] = (items if items else [])[:4]  # Limit inventory to 4 items
+        self.level = level
+        self.next_level_exp = next_level_exp
+        self.aiType = aiType
+        self.items = (items if items else [])[:4]
         self.max_items = 4
-        self.classType: str = classType
-        self.weaponExp: WeaponExp = weaponExp if weaponExp else WeaponExp()
+        self.classType = classType
+        self.weaponExp = weaponExp if weaponExp else WeaponExp()
         self._class_sprite = None
         self._class_sprite_key = None
 
@@ -327,7 +295,13 @@ class Cat:
         thumbySaveData.saveData.setItem(f"{self.name}_items", [item.name for item in self.items])
         thumbySaveData.saveData.save()
 
-    def getClassSprite(self, position: Position=Position(0,0)):
+    def restore_state(self):
+        self.set_exhausted(False)
+        self.set_moved(False)
+        self.set_hp(self.stats.max_hp)
+        self.set_selected(False)
+
+    def getClassSprite(self, position: Position = Position(0, 0)):
         sprite_key = (self.enemy, self.classType)
         sprite_data = get_class_overlay_data().get(sprite_key)
         if sprite_data is None:
@@ -343,7 +317,7 @@ class Cat:
 
     def use_item(self, item_index):
         if item_index < 0 or item_index >= len(self.items):
-            return 
+            return
 
         item = self.items[item_index]
         if item.type == 'consumable' and item.effect and 'heal' in item.effect:
@@ -369,20 +343,20 @@ class Cat:
 
     def set_moved(self, moved):
         self.moved = moved
-    
+
     def set_exhausted(self, exhausted):
         self.exhausted = exhausted
-    
+
     def set_selected(self, selected):
         self.selected = selected
-    
+
     def set_enemy(self, enemy):
         self.enemy = enemy
 
     def set_sprite_position(self, position):
         self.sprite.x = position.x
         self.sprite.y = position.y
-    
+
     def set_hp(self, new_hp):
         self.hp = min(new_hp, self.stats.max_hp)
 
@@ -391,12 +365,11 @@ class Cat:
         nextFrame = (curFrame + 1) % self.sprite.frameCount
         self.sprite.setFrame(nextFrame)
 
-    def add_exp(self, amount, addDialog: callable | None = None):
+    def add_exp(self, amount, addDialog=None):
         levels_gained = ((self.exp % 20) + amount) // 20
         self.exp += amount
 
         for _ in range(levels_gained):
-            print(f"{self.name} leveled up to {self.level + 1}!")
             self.level_up(addDialog)
 
         return self
@@ -407,7 +380,7 @@ class Cat:
                 return item
         return None
 
-    def level_up(self, addDialog: callable | None = None):
+    def level_up(self, addDialog=None):
         import random
         self.level += 1
         self.next_level_exp += 20
@@ -416,7 +389,7 @@ class Cat:
         CF = random.randint(1, 100)
 
         if not self.enemy and addDialog:
-            addDialog([f"{self.name} level up",f"to {self.level}"], self)
+            addDialog([f"{self.name} level up", f"to {self.level}"], self)
         for stat in ['attack', 'defense', 'max_hp', 'speed', 'luck', 'range']:
             RN = (RN + CF) % 100
             CF = (CF + RN) % 100
@@ -455,16 +428,17 @@ class Cat:
             self.stats.luck += 1
             self.weaponExp.add_weapons(['lightning', 'water', 'earth'])
 
+
 class Dialog:
     def __init__(
-            self,
-            lines: list[str] | None = None,
-            left_cats: list[Cat] | None = None,
-            right_cats: list[Cat] | None = None,
-            currentlyTalking: str='',
-            decision: bool=True,
-            lambda_after=None
-        ):
+        self,
+        lines=None,
+        left_cats=None,
+        right_cats=None,
+        currentlyTalking='',
+        decision=True,
+        lambda_after=None
+    ):
         self.lines = lines if lines else []
         self.currentlyTalking = currentlyTalking
         self.left_cats = left_cats if left_cats else []
@@ -472,25 +446,26 @@ class Dialog:
         self.lambda_after = lambda_after
         self.decision = decision
 
+
 class House:
     def __init__(
-            self,
-            position: Position,
-            preVistedDialogs: list[Dialog] | None = None,
-            dialogs: list[Dialog] | None = None,
-            postVisitDialog: list[Dialog] | None = None,
-            visitCondition: callable=None,
-            multipleVisits: bool=False
-        ):
+        self,
+        position,
+        preVistedDialogs=None,
+        dialogs=None,
+        postVisitDialog=None,
+        visitCondition=None,
+        multipleVisits=False
+    ):
         self.position = position
         self.dialogs = dialogs if dialogs else []
         self.preVistedDialogs = preVistedDialogs if preVistedDialogs else []
         self.postVisitDialog = postVisitDialog if postVisitDialog else []
-        defaultVisitCondition = lambda: True
+        def defaultVisitCondition(): return True
         self.visitCondition = visitCondition if visitCondition else defaultVisitCondition
         self.multipleVisits = multipleVisits
         self.visited = False
-    
+
     def visit(self):
         if self.multipleVisits:
             self.visited = False
@@ -508,55 +483,46 @@ class House:
         else:
             return len(self.dialogs) > 0
 
+
 class ShopItem:
     def __init__(self, item: Item, price: int):
         self.item: Item = item
         self.price: int = price
 
+
 class Shop:
     def __init__(
-            self,
-            position: Position,
-            inventory: list[ShopItem]=[],
-        ):
+        self,
+        position: Position,
+        inventory: list[ShopItem] = [],
+    ):
         self.position = position
         self.inventory = inventory
 
 # --- CLASSES ---
-class LevelUpLog:
-    def __init__(
-            self,
-            catName: str,
-            catSprite: thumby.Sprite,
-            newLevel: int,
-            stats: Stats,
-        ):
-        self.catName = catName
-        self.catSprite = catSprite
-        self.newLevel = newLevel
-        self.stats = stats
+
 
 class AttackLog:
     def __init__(
-            self,
-            attacker_name: str,
-            attacker_hp: int,
-            attacker_max_hp: int,
-            attacker_enemy: bool,
-            attacker_sprite: thumby.Sprite,
-            defender_name: str,
-            defender_hp: int,
-            defender_max_hp: int,
-            defender_enemy: bool,
-            defender_sprite: thumby.Sprite,
-            damage: int,
-            old_hp: int,
-            new_hp: int,
-            miss: bool,
-            dodge: bool,
-            text: str,
-            static_render_time: int = 0
-        ):
+        self,
+        attacker_name: str,
+        attacker_hp: int,
+        attacker_max_hp: int,
+        attacker_enemy: bool,
+        attacker_sprite: thumby.Sprite,
+        defender_name: str,
+        defender_hp: int,
+        defender_max_hp: int,
+        defender_enemy: bool,
+        defender_sprite: thumby.Sprite,
+        damage: int,
+        old_hp: int,
+        new_hp: int,
+        miss: bool,
+        dodge: bool,
+        text: str,
+        static_render_time: int = 0
+    ):
         self.attacker_name = attacker_name
         self.attacker_hp = attacker_hp
         self.attacker_max_hp = attacker_max_hp
@@ -575,108 +541,97 @@ class AttackLog:
         self.text = text
         self.static_render_time = static_render_time
 
-def block_sprite(): return thumby.Sprite(8, 8, (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([255, 133, 251, 149, 169, 223, 161, 255])), 32, 16)
-def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
-def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
 
-_item_cache = {}
+class Button:
+    def __init__(self, position, pressed=None, pressAction=None, canUnpress=None, canPress=None):
+        self.position = position
+        self.pressed = False if pressed is None else pressed
+        self.pressAction = pressAction
+        self.canUnpress = canUnpress if canUnpress is not None else False
+        self.canPress = canPress if canPress is not None else True
 
-def _build_item(item_name: str):
-    if item_name == "Stick":
-        return Item(name="Stick", item_type="weapon", attack=2, accuracy=80, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'], weaponType='sword')
-    if item_name == "Slngsht":
-        return Item(name="Slngsht", item_type="weapon", attack=1, accuracy=75, range=2, crit=1, allowedClasses=['pupil', 'sniper', 'warrior', 'wizard'], weaponType='repeater')
-    if item_name == "LghtngTm":
-        return Item(name="LghtngTm", item_type="weapon", attack=4, accuracy=80, range=2, crit=5, allowedClasses=['wizard'], weaponType='lightning')
-    if item_name == "WaterTm":
-        return Item(name="WaterTm", item_type="weapon", attack=3, accuracy=85, range=12, crit=3, allowedClasses=['wizard'], weaponType='water')
-    if item_name == "EarthTm":
-        return Item(name="EarthTm", item_type="weapon", attack=5, accuracy=70, range=12, crit=2, allowedClasses=['wizard'], weaponType='earth')
-    if item_name == "LongBow":
-        return Item(name="LongBow", item_type="weapon", attack=3, accuracy=80, range=3, crit=5, allowedClasses=['sniper'], weaponType='longbow')
-    if item_name == "Bow":
-        return Item(name="Bow", item_type="weapon", attack=5, accuracy=85, range=2, crit=3, allowedClasses=['sniper'], weaponType='bow')
-    if item_name == "Repeater":
-        return Item(name="Repeater", item_type="weapon", attack=3, accuracy=75, range=12, crit=4, allowedClasses=['sniper'], weaponType='repeater')
-    if item_name == "Sword":
-        return Item(name="Sword", item_type="weapon", attack=6, accuracy=85, range=1, crit=5, allowedClasses=['warrior', 'pupil'], weaponType='sword')
-    if item_name == "Spear":
-        return Item(name="Spear", item_type="weapon", attack=5, accuracy=60, range=2, crit=3, allowedClasses=['warrior'], weaponType='spear')
-    if item_name == "Mace":
-        return Item(name="Mace", item_type="weapon", attack=4, accuracy=75, range=12, crit=2, allowedClasses=['warrior'], weaponType='mace')
-    if item_name == "NecTome":
-        return Item(name="NecTome", item_type="weapon", attack=5, accuracy=90, range=12, crit=5, allowedClasses=['wizard'], weaponType='earth')
-    if item_name == "BulTome":
-        return Item(name="BulTome", item_type="weapon", attack=4, accuracy=85, range=3, crit=4, allowedClasses=['wizard'], weaponType='water')
-    if item_name == "MultiShot":
-        return Item(name="MultiShot", item_type="weapon", attack=2, accuracy=80, range=12, crit=3, allowedClasses=['sniper'], weaponType='repeater')
-    if item_name == "Launcher":
-        return Item(name="Launcher", item_type="weapon", attack=3, accuracy=70, range=3, crit=2, allowedClasses=['sniper'], weaponType='longbow')
-    if item_name == "Axe":
-        return Item(name="Axe", item_type="weapon", attack=3, accuracy=75, range=12, crit=4, allowedClasses=['warrior'], weaponType='mace')
-    if item_name == "VoidSwd":
-        return Item(name="VoidSwd", item_type="weapon", attack=7, accuracy=80, range=1, crit=5, allowedClasses=['warrior'], weaponType='sword')
+    def press(self):
+        if self.pressed:
+            if not self.canUnpress:
+                return
+            self.pressed = False
+        else:
+            if not self.canPress:
+                return
+            self.pressed = True
+            if self.pressAction:
+                self.pressAction()
 
-    if item_name == "Tuna":
-        return Item(name="Tuna", item_type="consumable", effect={"heal": 10})
+    def can_press(self):
+        if self.pressed:
+            return self.canUnpress
+        else:
+            return self.canPress
 
-    if item_name == "MystPot":
-        return Item(name="MystPot", item_type="promote", effect={"promote": "wizard"})
-    if item_name == "MstMeal":
-        return Item(name="MstMeal", item_type="promote", effect={"promote": "warrior"})
-    if item_name == "MstQll":
-        return Item(name="MstQll", item_type="promote", effect={"promote": "sniper"})
 
-    if item_name == "MagPowder":
-        return Item(name="MagPowder", item_type="consumable", effect={"level": 1})
+class Blockade:
+    def __init__(self, positions, cleared=None):
+        self.positions = positions
+        self.cleared = cleared if cleared is not None else False
 
-    if item_name == "RabFoot":
-        return Item(name="RabFoot", item_type="consumable", effect={"luck": 3})
-    if item_name == "Armor":
-        return Item(name="Armor", item_type="consumable", effect={"defense": 3})
-    if item_name == "PowerRing":
-        return Item(name="PowerRing", item_type="consumable", effect={"attack": 3})
-    if item_name == "NewBal":
-        return Item(name="NewBal", item_type="consumable", effect={"speed": 3})
+    def clear(self):
+        self.cleared = True
 
-    raise KeyError(item_name)
+    def unclear(self):
+        self.cleared = False
 
-class LazyItemDict:
-    def __contains__(self, key):
-        return key in {
-            "Stick", "Slngsht", "LghtngTm", "WaterTm", "EarthTm",
-            "LongBow", "Bow", "Repeater", "Sword", "Spear", "Mace",
-            "MagPowder", "RabFoot", "Armor", "PowerRing", "NewBal",
-            "NecTome", "BulTome", "MultiShot", "Launcher", "Axe", "VoidSwd",
-            "Tuna" 
-        }
-
-    def __getitem__(self, key):
-        if key not in self:
-            raise KeyError(key)
-        if key not in _item_cache:
-            _item_cache[key] = _build_item(key)
-        return _item_cache[key]
-
-    def get(self, key, default=None):
-        if key in self:
-            return self[key]
-        return default
-
-itemDict = LazyItemDict()
+class OverlayObject:
+    def __init__(self, position, objectName, boundPositions):
+        self.position = position
+        self.objectName = objectName
+        self.boundPositions = boundPositions
 
 class Conversation:
-	def __init__(
-			self,
-			dialogs: list[Dialog],
-			nameOne: str='',
-			nameTwo: str='',
-			condition: callable=lambda: True
-		):
-		self.dialogs = dialogs
-		self.nameOne = nameOne
-		self.nameTwo = nameTwo
-		self.condition = condition
+    def __init__(
+        self,
+        dialogs,
+        nameOne='',
+        nameTwo='',
+        condition=lambda: True
+    ):
+        self.dialogs = dialogs
+        self.nameOne = nameOne
+        self.nameTwo = nameTwo
+        self.condition = condition
+
+class Level:
+    def __init__(
+        self,
+        map,
+        enemies,
+        number=1,
+        seizePosition=Position(1, 1),
+        startingPositions=None,
+        shops=None,
+        houses=None,
+        conversations=None,
+        buttons=None,
+        blockades=None,
+        overlayObjects=None
+    ):
+        self.map = map
+        self.enemies = enemies
+        self.viewport = Position()
+        self.selectorPosition = Position()
+        self.number = number
+        self.seizePosition = seizePosition
+        self.startingPositions = startingPositions if startingPositions else []
+        self.shops = shops if shops else []
+        self.houses = houses if houses else []
+        self.conversations = conversations if conversations else []
+        self.buttons = buttons if buttons is not None else []
+        self.blockades = blockades if blockades is not None else []
+        self.overlayObjects = overlayObjects if overlayObjects is not None else []
+
+def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
+def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
+def button_sprite(pos): return thumby.Sprite(8, 8, (bytearray([191, 15, 31, 31, 31, 31, 15, 191, 191, 63, 127, 127, 127, 127, 63, 191]), bytearray([0, 56, 124, 124, 124, 124, 56, 0, 0, 32, 112, 112, 112, 112, 32, 0])), pos.x, pos.y)
+def cat_head(pos): return thumby.Sprite(40, 40, (bytearray([3, 253, 254, 254, 254, 254, 253, 195, 191, 127, 255, 255, 255, 255, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 255, 255, 255, 255, 127, 191, 131, 253, 254, 254, 254, 254, 253, 3, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 126, 126, 126, 126, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 126, 126, 126, 126, 254, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 227, 221, 190, 127, 127, 127, 127, 190, 221, 227, 255, 255, 255, 255, 255, 255, 227, 221, 190, 127, 127, 127, 127, 190, 221, 227, 255, 255, 255, 255, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 127, 127, 127, 127, 127, 127, 31, 227, 253, 254, 254, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 254, 254, 253, 227, 31, 127, 127, 127, 127, 127, 127, 0]), bytearray([252, 254, 255, 255, 255, 255, 254, 252, 192, 128, 0, 0, 0, 0, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 0, 0, 0, 0, 128, 192, 252, 254, 255, 255, 255, 255, 254, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 227, 193, 128, 128, 128, 128, 193, 227, 255, 255, 255, 255, 255, 255, 255, 255, 227, 193, 128, 128, 128, 128, 193, 227, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 31, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 3, 31, 255, 255, 255, 255, 255, 255, 255, 255])), pos.x, pos.y, 1)
 
 # --- UNITS (lazy) ---
 _unit_cache = {}
@@ -705,7 +660,7 @@ def _build_mew_unit():
     return Cat(
         sprite=cat_sprite,
         name='mew',
-        position=Position(3,1),
+        position=Position(3, 1),
         stats=Stats(attack=5, max_hp=10, speed=4),
         items=[itemDict['Stick']],
         weaponExp=WeaponExp(repeater=10, sword=20),
@@ -716,7 +671,7 @@ def _build_bub_unit():
     return Cat(
         sprite=cat_sprite,
         name='bub',
-        position=Position(8,1),
+        position=Position(8, 1),
         stats=Stats(attack=4, speed=4, luck=4),
         enemy=False,
         classType='sniper',
@@ -724,6 +679,7 @@ def _build_bub_unit():
         growthRates=GrowthRates(attack=60, defense=30, max_hp=55, speed=45, luck=40, range=30),
         weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10)
     ).add_exp(100, None)
+
 
 def _build_bao_unit():
     return Cat(
@@ -744,7 +700,7 @@ def _build_npc_unit():
     return Cat(
         sprite=cat_sprite,
         name='npc',
-        position=Position(0,0),
+        position=Position(0, 0),
         stats=Stats(attack=0, defense=0, max_hp=1, speed=0, luck=0, range=0),
         enemy=False,
         items=[]
@@ -773,167 +729,54 @@ def get_bao():
 def get_npc():
     return _get_or_create_unit('npc', _build_npc_unit)
 
+def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil'):
+    enemySprite = enemy_sprite()
+    e = Cat(
+        sprite=enemySprite,
+        position=position,
+        name=name,
+        enemy=True,
+        aiType=ai,
+        items=[itemDict[weapon]],
+        classType=classType
+    )
+    e.add_exp((level - 1) * 20, None)
+    return e
+
+
+def fetch_level(level_number):
+    if level_number < 6:
+        from ActOne import ActOneLevels
+        checkClearMem(f'fetch_level {level_number}')
+        levels = ActOneLevels
+
+        if level_number == 1:
+            return levels._build_level1()
+        elif level_number == 2:
+            return levels._build_level2()
+        elif level_number == 3:
+            return levels._build_level3()
+        elif level_number == 4:
+            return levels._build_level4()
+        elif level_number == 5:
+            return levels._build_level5()
+        return None
+    else:
+        from ActTwo import ActTwoLevels
+        checkClearMem(f'fetch_level {level_number}')
+        levels = ActTwoLevels
+
+        if level_number == 6:
+            return levels._build_level6()
+        elif level_number == 7:
+            return levels._build_level7()
+        elif level_number == 8:
+            return levels._build_level8()
+        elif level_number == 9:
+            return levels._build_level9()
+        elif level_number == 10:
+            return levels._build_level10()
+        else:
+            return None
+
 checkClearMem("After defining units")
-
-TILE_GRASS = 0
-TILE_FOREST = 1
-TILE_MOUNTAIN = 2
-TILE_HOUSE = 3
-EMPTY = 4
-TILE_WATER = 5
-TILE_COAST_X = 6
-TILE_COAST_XFLIP = 7
-TILE_COASTY = 8
-TILE_COASTY_YFLIP = 9
-TILE_BRIDGE = 10
-TILE_CLIFFBTLBR = 11
-TILE_CLIFF_B_TLBR_XFLIP = 12
-TILE_CLIFF_B_TLBR_YFLIP = 13
-TILE_CLIFF_B_TLBR_XYFLIP = 14
-TILE_CLIFF_TTLBR = 15
-TILE_CLIFF_TTLBR_XFLIP = 16
-TILE_CLIFF_STRAIGHT = 17
-TILE_STAIRS = 18
-TILE_SHOP = 19
-WALL_TOP = 20
-WALL_SIDE = 21
-TILE_CLIFF_TOP = 22
-TILE_CLIFF_TOP_YFLIP = 23
-TILE_CLIFF_RIGHT = 24
-TILE_CLIFF_RIGHT_XFLIP = 25
-TILE_COAST_CORNER_BR = 26
-TILE_COAST_CORNER_BR_XFLIP = 27
-TILE_COAST_CORNER_BR_YFLIP = 28
-TILE_COAST_CORNER_BR_XYFLIP = 29
-TILE_WATER_CLIFF = 30
-TILE_WATER_CLIFF_YFLIP = 31
-TILE_WATER_CLIFF_XFLIP = 32
-TILE_WATER_CLIFF_XYFLIP = 33
-TILE_SEIZE = 34
-
-tiles = {
-	TILE_GRASS: {"sprite": (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([0, 64, 0, 64, 4, 0, 4, 0])), "XFLIP": False, "YFLIP": False},
-	TILE_FOREST: {"sprite": (bytearray([255, 255, 255, 255, 127, 255, 255, 255]), bytearray([0, 0, 96, 124, 255, 124, 96, 0])), "XFLIP": False, "YFLIP": False},
-	TILE_MOUNTAIN: {"sprite": (bytearray([255, 255, 255, 255, 255, 252, 227, 31]), bytearray([192, 240, 252, 255, 255, 255, 252, 224])), "XFLIP": False, "YFLIP": False},
-	TILE_HOUSE: {"sprite": (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([8, 252, 142, 239, 239, 142, 252, 8])), "XFLIP": False, "YFLIP": False},
-	TILE_WATER: {"sprite": (bytearray([0, 4, 2, 4, 64, 32, 64, 0, 0, 0, 4, 66, 36, 64, 0, 0]), bytearray([0, 4, 2, 4, 64, 32, 64, 0, 0, 0, 4, 66, 36, 64, 0, 0])), "XFLIP": False, "YFLIP": False},
-	TILE_COAST_X: {"sprite": (bytearray([0, 64, 160, 0, 7, 136, 86, 239, 0, 4, 10, 0, 64, 161, 86, 239]), bytearray([0, 64, 160, 0, 7, 136, 16, 0, 0, 4, 10, 0, 64, 161, 16, 0])), "XFLIP": False, "YFLIP": False},
-	TILE_COASTY: {"sprite": (bytearray([160, 208, 136, 16, 164, 194, 196, 160, 160, 196, 130, 68, 160, 208, 208, 160]), bytearray([32, 16, 8, 16, 36, 2, 4, 32, 32, 4, 2, 68, 32, 16, 16, 32])), "XFLIP": False, "YFLIP": False},
-	TILE_BRIDGE: {"sprite": (bytearray([126, 126, 126, 126, 126, 126, 126, 126]), bytearray([193, 193, 193, 193, 193, 193, 193, 193])), "XFLIP": False, "YFLIP": False},
-	TILE_CLIFF_TOP: {"sprite": (bytearray([254, 254, 254, 254, 254, 254, 254, 254]), bytearray([1, 1, 1, 1, 1, 1, 1, 1])), "XFLIP": False, "YFLIP": False},
-	TILE_CLIFF_RIGHT: {"sprite": (bytearray([255, 255, 255, 255, 255, 255, 255, 0]), bytearray([0, 0, 0, 0, 0, 0, 0, 255])), "XFLIP": False, "YFLIP": False},
-	TILE_CLIFFBTLBR: {"sprite": (bytearray([126, 253, 251, 247, 239, 223, 191, 127]), bytearray([255, 254, 252, 248, 240, 224, 192, 128])), "XFLIP": False, "YFLIP": False},
-	TILE_CLIFF_TTLBR: {"sprite": (bytearray([127, 191, 223, 239, 247, 251, 253, 254]), bytearray([128, 64, 32, 16, 72, 36, 66, 1])), "XFLIP": False, "YFLIP": False},
-	TILE_CLIFF_STRAIGHT: {"sprite": (bytearray([126, 126, 126, 126, 126, 126, 126, 126]), bytearray([255, 255, 255, 255, 255, 255, 255, 255])), "XFLIP": False, "YFLIP": False},
-	TILE_COAST_CORNER_BR: {"sprite": (bytearray([160, 208, 160, 0, 164, 217, 194, 247, 136, 200, 128, 4, 130, 192, 194, 247]), bytearray([32, 16, 32, 0, 36, 25, 0, 0, 8, 8, 0, 4, 2, 0, 0, 0])),"XFLIP": False, "YFLIP": False },
-	TILE_STAIRS: {"sprite": (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([85, 85, 85, 85, 85, 85, 85, 85])), "XFLIP": False, "YFLIP": False},
-	TILE_SHOP: {"sprite": (bytearray([255, 255, 255, 255, 255, 255, 255, 255]), bytearray([254, 2, 5, 229, 229, 5, 2, 254])), "XFLIP": False, "YFLIP": False},
-	WALL_TOP: {"sprite": (bytearray([127, 127, 127, 127, 127, 127, 127, 1]), bytearray([128, 254, 254, 254, 254, 254, 254, 254])), "XFLIP": False, "YFLIP": False},
-	WALL_SIDE: {"sprite": (bytearray([17, 17, 68, 68, 17, 17, 68, 68]), bytearray([85, 17, 85, 68, 85, 17, 85, 68])), "XFLIP": False, "YFLIP": False},
-	TILE_WATER_CLIFF: {"sprite": (bytearray([0, 1, 3, 7, 15, 31, 63, 127]), bytearray([1, 2, 4, 8, 16, 32, 64, 128])), "XFLIP": False, "YFLIP": False},
-    TILE_SEIZE: {"sprite": (bytearray([255, 127, 127, 127, 127, 127, 127, 255]), bytearray([252, 134, 131, 129, 129, 131, 134, 252])), "XFLIP": False, "YFLIP": False},
-}
-
-_tile_flip_overrides = {
-    TILE_COAST_XFLIP: (TILE_COAST_X, True, False),
-    TILE_COASTY_YFLIP: (TILE_COASTY, False, True),
-    TILE_CLIFF_B_TLBR_XFLIP: (TILE_CLIFFBTLBR, True, False),
-    TILE_CLIFF_B_TLBR_YFLIP: (TILE_CLIFFBTLBR, False, True),
-    TILE_CLIFF_B_TLBR_XYFLIP: (TILE_CLIFFBTLBR, True, True),
-    TILE_CLIFF_TTLBR_XFLIP: (TILE_CLIFF_TTLBR, True, False),
-    TILE_CLIFF_RIGHT_XFLIP: (TILE_CLIFF_RIGHT, True, False),
-    TILE_COAST_CORNER_BR_XFLIP: (TILE_COAST_CORNER_BR, True, False),
-    TILE_COAST_CORNER_BR_YFLIP: (TILE_COAST_CORNER_BR, False, True),
-    TILE_COAST_CORNER_BR_XYFLIP: (TILE_COAST_CORNER_BR, True, True),
-    TILE_WATER_CLIFF_YFLIP: (TILE_WATER_CLIFF, False, True),
-    TILE_WATER_CLIFF_XFLIP: (TILE_WATER_CLIFF, True, False),
-    TILE_WATER_CLIFF_XYFLIP: (TILE_WATER_CLIFF, True, True),
-}
-
-def get_tile_data(tile_type: int):
-    tileData = tiles.get(tile_type, None)
-    if tileData:
-        return tileData["sprite"], tileData["XFLIP"], tileData["YFLIP"]
-
-    override = _tile_flip_overrides.get(tile_type, None)
-    if override:
-        base_type, x_flip, y_flip = override
-        baseData = tiles.get(base_type, None)
-        if baseData:
-            return baseData["sprite"], x_flip, y_flip
-
-    return None, False, False
-
-canWalkOn = {
-	TILE_GRASS: True,
-	TILE_FOREST: True,
-	TILE_MOUNTAIN: False,
-	TILE_HOUSE: True,
-	EMPTY: True,
-	TILE_WATER: False,
-	TILE_COAST_X: False,
-	TILE_COAST_XFLIP: False,
-	TILE_COASTY: False,
-	TILE_COASTY_YFLIP: False,
-	TILE_BRIDGE: True,
-	TILE_CLIFFBTLBR: False,
-	TILE_CLIFF_B_TLBR_XFLIP: False,
-	TILE_CLIFF_B_TLBR_YFLIP: False,
-	TILE_CLIFF_B_TLBR_XYFLIP: False,
-	TILE_CLIFF_TTLBR: False,
-	TILE_CLIFF_TTLBR_XFLIP: False,
-	TILE_CLIFF_STRAIGHT: False,
-	TILE_STAIRS: True,
-	TILE_SHOP: True,
-	WALL_TOP: False,
-	WALL_SIDE: False,
-	TILE_CLIFF_TOP: True,
-	TILE_CLIFF_TOP_YFLIP: True,
-	TILE_CLIFF_RIGHT: True,
-	TILE_CLIFF_RIGHT_XFLIP: True,
-	TILE_COAST_CORNER_BR: False,
-	TILE_COAST_CORNER_BR_XFLIP: False,
-	TILE_COAST_CORNER_BR_YFLIP: False,
-	TILE_COAST_CORNER_BR_XYFLIP: False,
-    TILE_SEIZE: True,
-}
-
-tileEncumberence = {
-	TILE_FOREST: 2,
-}
-
-tileEvation = {
-	TILE_FOREST: 20,
-	TILE_GRASS: 5,
-	TILE_HOUSE: 10,
-	TILE_SHOP: 10,
-}
-
-checkClearMem("After defining tile properties")
-
-_map_cache = {}
-
-def get_map(map_number: int):
-    if map_number in _map_cache:
-        return _map_cache[map_number]
-
-    import MapData
-    maps = {
-        1: MapData.map1,
-        2: MapData.map2,
-        3: MapData.map3,
-        4: MapData.map4,
-        5: MapData.map5,
-        6: MapData.map6,
-        7: MapData.map7,
-        8: MapData.map8,
-        9: MapData.map9,
-    }
-    if map_number not in maps:
-        raise ValueError(f"Map {map_number} does not exist")
-
-    map_data = maps[map_number]
-    _map_cache.clear()
-    _map_cache[map_number] = map_data
-    gc.collect()
-    return map_data
