@@ -31,9 +31,9 @@ class GameState:
         ):
         self.bank = 0
         self.party = party if party else []
-        self.current_turn: str = 'player'
         self.selectedCatId: str | None = None
         self.load_level(level)
+        self.player_turn = True
         self.cached_domain = None 
         self.combat_log = []
         self.dialog: list[Dialog] = []
@@ -44,7 +44,6 @@ class GameState:
     def save_game(self):
         """Save the current game state to persistent storage."""
         saveData = get_save_data()
-        saveData.setName("CatsEmblem")
         saveData.delItem("gameState-bank")
         saveData.setItem("gameState-bank", self.bank)
         for cat in self.party:
@@ -147,50 +146,34 @@ class GameState:
         self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
 
     def set_state(self, new_state: str):
-        self.state = new_state
-        if new_state == 'map':
+        if self.state == 'enemy-turn' and new_state == 'map':
+            for unit in self.level.enemies:
+                unit.set_exhausted(False)
+                unit.set_moved(False)
+        elif new_state == 'map':
             self.cancel_cat_select()
         elif new_state == 'enemy-turn':
             for cat in self.party:
                 cat.set_exhausted(False)
                 cat.set_moved(False)
-            self.current_turn = 'enemy'
-        elif self.state == 'enemy-turn' and new_state == 'map':
-            for cat in self.party:
-                cat.set_exhausted(False)
-                cat.set_moved(False)
-            self.current_turn = 'player'
+        self.state = new_state
 
     def start_game(self):
         self.party = [get_cat()]
         self.load_level(fetch_level(1))
 
     def load_next_level(self):
-        if self.level.number == 1:
-            self.load_level(fetch_level(2))
+        n = self.level.number
+        if 1 <= n <= 6:
+            self.load_level(fetch_level(n + 1))
             self.save_game()
-        elif self.level.number == 2:
-            self.load_level(fetch_level(3))
-            self.save_game()
-        elif self.level.number == 3:
-            self.load_level(fetch_level(4))
-            self.save_game()
-        elif self.level.number == 4:
-            self.load_level(fetch_level(5))
-            self.save_game()
-        elif self.level.number == 5:
-            self.load_level(fetch_level(6))
-            self.save_game()
-        elif self.level.number == 6:
-            self.load_level(fetch_level(7))
-            self.save_game()
-        elif self.level.number == 7 and len(self.party) == 5:
+        elif n == 7 and len(self.party) == 5:
             self.load_level(fetch_level(8))
             self.save_game()
-        elif self.level.number == 7 or self.level.number == 8:
+        elif n == 7 or n == 8:
             self.load_level(fetch_level(9))
             self.save_game()
-        elif self.level.number == 9:
+        elif n == 9:
             self.state = 'end'
         else:
             self.state = 'gameover'
@@ -253,15 +236,17 @@ class GameState:
 
         visited = set()
         valid_positions = set()
+        position_weight = dict()
         queue = [(cat.position, range)]
 
         while queue:
             current_pos, remaining_range = queue.pop(0)
 
-            if remaining_range < 0 or current_pos in visited:
+            if remaining_range < 0 or (current_pos in visited and position_weight.get(f"{current_pos.x},{current_pos.y}", -1) >= remaining_range):
                 continue
 
             visited.add(current_pos)
+            position_weight[f"{current_pos.x},{current_pos.y}"] = remaining_range
 
             if not is_walkable(current_pos):
                 continue
@@ -290,7 +275,7 @@ class GameState:
                 if current_pos.y <= cat.position.y:
                     neighbors.append(Position(current_pos.x, current_pos.y - 1))
                 for neighbor in neighbors:
-                    if neighbor not in visited and is_walkable(neighbor):
+                    if is_walkable(neighbor):
                         encumbrance = tileEncumberence.get(self.level.map[neighbor.y][neighbor.x], 1)
                         queue.append((neighbor, remaining_range - encumbrance))
 
@@ -301,15 +286,29 @@ class GameState:
             for cat in self.party:
                 cat.set_exhausted(False)
                 cat.set_moved(False)
-        elif self.state == 'enemy-turn':
-            self.set_state('map')
+        elif self.player_turn:
+            for cat in self.party:
+                cat.set_exhausted(False)
+                cat.set_moved(False)
+            self.player_turn = False
+            self.set_state('enemy-turn')
+            self.update_selector_position(self.level.enemies[0].position.x, self.level.enemies[0].position.y)
             self.add_dialog(Dialog(
-                lines=["Player Turn"],
+                lines=[" Enemy Turn"],
+                overlay=True,
+                timeout=1
             ))
         else:
-            self.set_state('enemy-turn')
+            for unit in self.level.enemies:
+                unit.set_exhausted(False)
+                unit.set_moved(False)
+            self.player_turn = True
+            self.set_state('map')
+            self.update_selector_position(self.party[0].position.x, self.party[0].position.y)
             self.add_dialog(Dialog(
-                lines=["Enemy Turn"],
+                lines=["Player Turn"],
+                overlay=True,
+                timeout=1
             ))
 
     def update_selector_position(self, x, y):
@@ -338,29 +337,24 @@ class GameState:
         self.level.viewport.y = viewport_y
 
     def units_in_range(self, position: Position, range_distance: int):
-        units: list[Cat] = []
-        for unit in self.party + self.level.enemies:
-            dx = abs(unit.position.x - position.x)
-            dy = abs(unit.position.y - position.y)
-            if dx + dy <= range_distance:
-                units.append(unit)
-        return units
+        return [u for u in self.party + self.level.enemies
+                if abs(u.position.x - position.x) + abs(u.position.y - position.y) <= range_distance]
 
     def cat_is_on_shop(self):
-        lateBirthdayCelebration = self.get_selected_cat()
-        if not lateBirthdayCelebration:
+        cat = self.get_selected_cat()
+        if not cat:
             return None
         for shop in self.level.shops:
-            if lateBirthdayCelebration.position == shop.position:
+            if cat.position == shop.position:
                 return shop
         return None
 
     def cat_is_on_house(self):
-        neo = self.get_selected_cat()
-        if not neo:
+        cat = self.get_selected_cat()
+        if not cat:
             return None
         for house in self.level.houses:
-            if neo.position == house.position:
+            if cat.position == house.position:
                 return house
         return None
     
@@ -377,8 +371,9 @@ class GameState:
         shop_menu_options: list[Option] = []
 
         def exit_menu():
-                self.state = 'map'
-                self.cancel_cat_select()
+            selCat = self.get_selected_cat()
+            selCat.set_exhausted(True)
+            self.cancel_cat_select()
 
         for shop_item in shop.inventory:
             def make_purchase_action(item=shop_item):
@@ -452,8 +447,7 @@ class GameState:
                             ))
                         if item.type == 'weapon' and index != 0:
                             def equip_item_action(item_index=index):
-                                indexCopy = item_index
-                                def equip_item(item_index=indexCopy):
+                                def equip_item(item_index=item_index):
                                     temp = selectedCat.items[0]
                                     selectedCat.items[0] = selectedCat.items[item_index]
                                     selectedCat.items[item_index] = temp
@@ -574,8 +568,6 @@ class GameState:
                                 condition= lambda: not selectedCat.exhausted
                             ))
 
-                        optionIndexCopy = option_index
-
                         def open_item_stats_menu(sel_item=item):
                             stats_options: list[Option] = [
                                 Option(label=f"type:{sel_item.type}", action=lambda: None)
@@ -640,19 +632,15 @@ class GameState:
                 return False
             if not house:
                 return False
-            if not house.visited:
+            if house.can_visit():
                 return True
             if house.has_more_dialogs():
                 return True
             return False
         
         def can_move():
-            motherTucker = self.get_selected_cat()
-            if not motherTucker:
-                return False
-            if not motherTucker.moved and not motherTucker.exhausted:
-                return True
-            return False
+            cat = self.get_selected_cat()
+            return cat is not None and not cat.moved and not cat.exhausted
 
         def move_action():
             self.state = 'map'
@@ -666,13 +654,6 @@ class GameState:
 
         def fight_action():
             self.state = 'enemy-select'
-
-        def end_turn_action():
-            cat = self.get_selected_cat()
-            if cat:
-                cat.set_exhausted(True)
-            self.cancel_cat_select()
-            self.state = 'enemy-turn'
 
         def seize_action():
             self.cancel_cat_select()
@@ -722,10 +703,6 @@ class GameState:
             if shop:
                 self.open_shop_menu(shop)
                 self.needsUpdate = True
-                cat = self.get_selected_cat()
-                if cat:
-                    cat.set_moved(True)
-                    cat.set_exhausted(True)
 
         def can_talk():
             for conversation in self.level.conversations:       
@@ -824,7 +801,7 @@ class GameState:
                     condition= lambda: self.selectedCatId is not None
                 ), Option(
                     label= "End Turn",
-                    action= end_turn_action,
+                    action= self.end_turn,
                     condition= lambda: True
                 )
             ]],
@@ -894,7 +871,4 @@ class GameState:
         self.enter_menu(stats_menu)
 
     def is_occupied(self, position: Position):
-        for cat in self.party + self.level.enemies:
-            if cat.position == position:
-                return True
-        return False
+        return any(cat.position == position for cat in self.party + self.level.enemies)

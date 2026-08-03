@@ -3,6 +3,7 @@ syspath.insert(0, '/Games/CatsEmblem')
 
 from Items import itemDict
 from Shared import Blockade, Button, OverlayObject, checkClearMem, Dialog, House, Position, Shop, ShopItem, Level, generate_enemy
+checkClearMem("Shared imported")
 
 _add_to_party = None
 _update_bank = None

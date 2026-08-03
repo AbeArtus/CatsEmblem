@@ -69,7 +69,7 @@ def _build_item(item_name: str):
     if item_name == "Launcher":
         return Item(name="Launcher", item_type="weapon", attack=3, accuracy=70, range=3, crit=2, allowedClasses=['sniper'], weaponType='longbow')
     if item_name == "Axe":
-        return Item(name="Axe", item_type="weapon", attack=3, accuracy=75, range=12, crit=4, allowedClasses=['warrior'], weaponType='mace')
+        return Item(name="Axe", item_type="weapon", attack=4, accuracy=75, range=12, crit=4, allowedClasses=['warrior'], weaponType='mace')
     if item_name == "VoidSwd":
         return Item(name="VoidSwd", item_type="weapon", attack=7, accuracy=80, range=1, crit=5, allowedClasses=['warrior'], weaponType='sword')
     if item_name == "Tuna":

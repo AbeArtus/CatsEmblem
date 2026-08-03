@@ -1,4 +1,5 @@
 from sys import path as syspath
+from MapData import button_sprite_sheet, cat_head_sprite_sheet, cat_sprite_sheet, enemy_sprite_sheet
 import thumbyGrayscale as thumby
 import gc
 
@@ -199,9 +200,11 @@ class Menu:
         for i, option in enumerate(visible_options):
             selected = thumby.display.BLACK if i + offset == self.option_index else thumby.display.DARKGRAY
             if i + offset == self.option_index:
+                thumby.display.drawRectangle(71, 9 + i * 8, 1, 5, thumby.display.BLACK)
+                thumby.display.drawRectangle(70, 10 + i * 8, 1, 3, thumby.display.BLACK)
+                thumby.display.drawRectangle(69, 11 + i * 8, 1, 1, thumby.display.BLACK)
                 thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.BLACK)
-                thumby.display.drawRectangle(1, 10 + i * 8, 1, 3, thumby.display.BLACK)
-            thumby.display.drawText(option.label, 3, 8 + i * 8, selected)
+            thumby.display.drawText(option.label, 2, 8 + i * 8, selected)
 
 
 class Cat:
@@ -220,6 +223,7 @@ class Cat:
         exp=0,
         next_level_exp=20,
         aiType='stand',
+        aiPath=None,
         items=None,
         classType='pupil',
         weaponExp=None,
@@ -246,6 +250,7 @@ class Cat:
         self.level = level
         self.next_level_exp = next_level_exp
         self.aiType = aiType
+        self.aiPath = aiPath if aiPath else []
         self.items = (items if items else [])[:4]
         self.max_items = 4
         self.classType = classType
@@ -344,7 +349,7 @@ class Cat:
     def set_moved(self, moved):
         self.moved = moved
 
-    def set_exhausted(self, exhausted):
+    def cancel_select(self, exhausted):
         self.exhausted = exhausted
 
     def set_selected(self, selected):
@@ -428,7 +433,6 @@ class Cat:
             self.stats.luck += 1
             self.weaponExp.add_weapons(['lightning', 'water', 'earth'])
 
-
 class Dialog:
     def __init__(
         self,
@@ -437,7 +441,9 @@ class Dialog:
         right_cats=None,
         currentlyTalking='',
         decision=True,
-        lambda_after=None
+        lambda_after=None,
+        overlay=False,
+        timeout=None
     ):
         self.lines = lines if lines else []
         self.currentlyTalking = currentlyTalking
@@ -445,7 +451,8 @@ class Dialog:
         self.right_cats = right_cats if right_cats else []
         self.lambda_after = lambda_after
         self.decision = decision
-
+        self.overlay = overlay
+        self.timeout = timeout
 
 class House:
     def __init__(
@@ -455,7 +462,8 @@ class House:
         dialogs=None,
         postVisitDialog=None,
         visitCondition=None,
-        multipleVisits=False
+        multipleVisits=False,
+        destroyed=False
     ):
         self.position = position
         self.dialogs = dialogs if dialogs else []
@@ -465,6 +473,7 @@ class House:
         self.visitCondition = visitCondition if visitCondition else defaultVisitCondition
         self.multipleVisits = multipleVisits
         self.visited = False
+        self.destroyed = destroyed
 
     def visit(self):
         if self.multipleVisits:
@@ -473,22 +482,29 @@ class House:
         self.visited = True
 
     def can_visit(self):
-        if self.visitCondition:
+        if self.visitCondition and not self.destroyed:
             return self.visitCondition()
-        return True
+        return self.destroyed
 
     def has_more_dialogs(self):
+        if self.destroyed:
+            return False
         if self.visited:
             return len(self.postVisitDialog) > 0
         else:
             return len(self.dialogs) > 0
 
+    def destroy(self):
+        self.destroyed = True
+        self.dialogs = []
+        self.preVistedDialogs = []
+        self.postVisitDialog = []
+        self.visitCondition = lambda: False
 
 class ShopItem:
     def __init__(self, item: Item, price: int):
         self.item: Item = item
         self.price: int = price
-
 
 class Shop:
     def __init__(
@@ -500,7 +516,6 @@ class Shop:
         self.inventory = inventory
 
 # --- CLASSES ---
-
 
 class AttackLog:
     def __init__(
@@ -541,7 +556,6 @@ class AttackLog:
         self.text = text
         self.static_render_time = static_render_time
 
-
 class Button:
     def __init__(self, position, pressed=None, pressAction=None, canUnpress=None, canPress=None):
         self.position = position
@@ -567,7 +581,6 @@ class Button:
             return self.canUnpress
         else:
             return self.canPress
-
 
 class Blockade:
     def __init__(self, positions, cleared=None):
@@ -628,10 +641,10 @@ class Level:
         self.blockades = blockades if blockades is not None else []
         self.overlayObjects = overlayObjects if overlayObjects is not None else []
 
-def cat_sprite(): return thumby.Sprite(8, 8, (bytearray([0, 207, 15, 15, 192, 5, 241, 244, 6, 201, 15, 15, 192, 5, 241, 244, 7, 201, 14, 15, 192, 5, 241, 244, 1, 206, 15, 15, 192, 5, 241, 244])), 32, 16, key=1)
-def enemy_sprite(): return thumby.Sprite(8, 8, (bytearray([3, 143, 2, 4, 129, 1, 228, 242, 3, 143, 2, 4, 145, 17, 196, 242, 7, 139, 2, 4, 129, 1, 228, 242]), bytearray([252, 112, 253, 251, 118, 246, 27, 13, 252, 112, 253, 251, 102, 230, 59, 13, 248, 116, 253, 251, 118, 246, 27, 13])), 32, 16, key=1)
-def button_sprite(pos): return thumby.Sprite(8, 8, (bytearray([191, 15, 31, 31, 31, 31, 15, 191, 191, 63, 127, 127, 127, 127, 63, 191]), bytearray([0, 56, 124, 124, 124, 124, 56, 0, 0, 32, 112, 112, 112, 112, 32, 0])), pos.x, pos.y)
-def cat_head(pos): return thumby.Sprite(40, 40, (bytearray([3, 253, 254, 254, 254, 254, 253, 195, 191, 127, 255, 255, 255, 255, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 255, 255, 255, 255, 127, 191, 131, 253, 254, 254, 254, 254, 253, 3, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 126, 126, 126, 126, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 126, 126, 126, 126, 254, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 227, 221, 190, 127, 127, 127, 127, 190, 221, 227, 255, 255, 255, 255, 255, 255, 227, 221, 190, 127, 127, 127, 127, 190, 221, 227, 255, 255, 255, 255, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 127, 127, 127, 127, 127, 127, 31, 227, 253, 254, 254, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 254, 254, 253, 227, 31, 127, 127, 127, 127, 127, 127, 0]), bytearray([252, 254, 255, 255, 255, 255, 254, 252, 192, 128, 0, 0, 0, 0, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 0, 0, 0, 0, 128, 192, 252, 254, 255, 255, 255, 255, 254, 252, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 227, 193, 128, 128, 128, 128, 193, 227, 255, 255, 255, 255, 255, 255, 255, 255, 227, 193, 128, 128, 128, 128, 193, 227, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 31, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 3, 31, 255, 255, 255, 255, 255, 255, 255, 255])), pos.x, pos.y, 1)
+def cat_sprite(): return thumby.Sprite(8, 8, cat_sprite_sheet(), 32, 16, key=1)
+def enemy_sprite(): return thumby.Sprite(8, 8, enemy_sprite_sheet(), 32, 16, key=1)
+def button_sprite(pos): return thumby.Sprite(8, 8, button_sprite_sheet(), pos.x, pos.y)
+def cat_head(pos): return thumby.Sprite(40, 40, cat_head_sprite_sheet(), pos.x, pos.y, 1)
 
 # --- UNITS (lazy) ---
 _unit_cache = {}
@@ -729,8 +742,20 @@ def get_bao():
 def get_npc():
     return _get_or_create_unit('npc', _build_npc_unit)
 
-def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil'):
+class PathPoint:
+    def __init__(self, position: Position):
+        self.position = position
+        self.visited = False
+
+    def mark_visited(self):
+        self.visited = True
+
+def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil', path=None):
     enemySprite = enemy_sprite()
+    bigBoiPath = []
+    if path is not None:
+        for p in path:
+            bigBoiPath.append(PathPoint(p))
     e = Cat(
         sprite=enemySprite,
         position=position,
@@ -738,7 +763,8 @@ def generate_enemy(level: int, position: Position, ai='searchAndDestroy', name='
         enemy=True,
         aiType=ai,
         items=[itemDict[weapon]],
-        classType=classType
+        classType=classType,
+        aiPath=bigBoiPath
     )
     e.add_exp((level - 1) * 20, None)
     return e

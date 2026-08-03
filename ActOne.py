@@ -23,7 +23,6 @@ def set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item
 	_get_selected_cat = get_selected_cat
 checkClearMem("After setting game state callbacks")
 
-# Use the callbacks in your code
 def add_party_member(cat):
 	if _add_to_party:
 		_add_to_party(cat)
@@ -65,7 +64,7 @@ class ActOneLevels:
 		level = Level(
 			map = get_map(1),
 			enemies=[
-				generate_enemy(1, Position(4, 4), name='pig'),
+				generate_enemy(1, Position(4, 4), name='pig', ai='path', path=[Position(4, 7), Position(4, 10), Position(4, 13)]),
 				generate_enemy(1, Position(6, 4), name='pig', weapon='Slngsht'),
 				generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior')
 			],
@@ -98,7 +97,7 @@ class ActOneLevels:
 						lambda_after=lambda: modify_bank(50)
 					)],
 					postVisitDialog=[Dialog(
-						lines=["Thats all","we got"],
+						lines=["Thats all","we got.."],
 						left_cats=[get_cat_at_position(Position(6, 11))],
 						right_cats=[npc],
 						currentlyTalking='npc'
