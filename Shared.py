@@ -349,7 +349,7 @@ class Cat:
     def set_moved(self, moved):
         self.moved = moved
 
-    def cancel_select(self, exhausted):
+    def set_exhausted(self, exhausted):
         self.exhausted = exhausted
 
     def set_selected(self, selected):
@@ -402,7 +402,7 @@ class Cat:
             if RN <= getattr(self.growthRates, stat):
                 setattr(self.stats, stat, getattr(self.stats, stat) + 1)
                 added += 1
-                if CF < (getattr(self.growthRates, stat)):
+                if CF < (getattr(self.growthRates, stat)) and stat not in ['range']:
                     setattr(self.stats, stat, getattr(self.stats, stat) + 1)
                     added += 1
             if added > 0 and not self.enemy and addDialog:
@@ -458,7 +458,7 @@ class House:
     def __init__(
         self,
         position,
-        preVistedDialogs=None,
+        preVisitedDialogs=None,
         dialogs=None,
         postVisitDialog=None,
         visitCondition=None,
@@ -467,7 +467,7 @@ class House:
     ):
         self.position = position
         self.dialogs = dialogs if dialogs else []
-        self.preVistedDialogs = preVistedDialogs if preVistedDialogs else []
+        self.preVisitedDialogs = preVisitedDialogs if preVisitedDialogs else []
         self.postVisitDialog = postVisitDialog if postVisitDialog else []
         def defaultVisitCondition(): return True
         self.visitCondition = visitCondition if visitCondition else defaultVisitCondition
@@ -497,7 +497,7 @@ class House:
     def destroy(self):
         self.destroyed = True
         self.dialogs = []
-        self.preVistedDialogs = []
+        self.preVisitedDialogs = []
         self.postVisitDialog = []
         self.visitCondition = lambda: False
 
@@ -557,17 +557,19 @@ class AttackLog:
         self.static_render_time = static_render_time
 
 class Button:
-    def __init__(self, position, pressed=None, pressAction=None, canUnpress=None, canPress=None):
+    def __init__(self, position, pressed=None, pressAction=None, unPressAction=None, canUnpress=None, canPress=None):
         self.position = position
         self.pressed = False if pressed is None else pressed
         self.pressAction = pressAction
-        self.canUnpress = canUnpress if canUnpress is not None else False
         self.canPress = canPress if canPress is not None else True
+        self.unPressAction = unPressAction
+        self.canUnpress = canUnpress if canUnpress is not None else True
 
     def press(self):
         if self.pressed:
-            if not self.canUnpress:
+            if not self.unPressAction:
                 return
+            self.unPressAction()
             self.pressed = False
         else:
             if not self.canPress:
@@ -699,7 +701,7 @@ def _build_bao_unit():
         sprite=cat_sprite,
         name='bao',
         position=Position(8,14),
-        stats=Stats(attack=5, defense=3, luck=4, range=6),
+        stats=Stats(attack=5, defense=3, luck=4, range=4),
         level=5,
         enemy=False,
         aiType='stand',

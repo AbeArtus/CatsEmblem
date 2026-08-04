@@ -64,8 +64,8 @@ class ActOneLevels:
 		level = Level(
 			map = get_map(1),
 			enemies=[
-				generate_enemy(1, Position(4, 4), name='pig', ai='path', path=[Position(4, 7), Position(4, 10), Position(4, 13)]),
-				generate_enemy(1, Position(6, 4), name='pig', weapon='Slngsht'),
+				generate_enemy(1, Position(4, 4), name='pig', ai='path', path=[Position(4, 7)]),
+				generate_enemy(1, Position(6, 4), name='pig', ai='path', path=[Position(4, 5)]),
 				generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior')
 			],
 			number=1,
@@ -150,9 +150,9 @@ class ActOneLevels:
 		level = Level(
 			map=get_map(2),
 			enemies=[
-				generate_enemy(1, Position(9, 8), name='mut'),
-				generate_enemy(2, Position(11, 9), name='mut'),
-				generate_enemy(2, Position(2, 6), name='mut'),
+				generate_enemy(1, Position(5, 13), name='mut', ai='path', path=[Position(11, 13)]),
+				generate_enemy(2, Position(5, 14), name='mut', ai='path', path=[Position(12, 12)]),
+				generate_enemy(2, Position(1, 10), name='mut', ai='path', path=[Position(3, 2)]),
 				generate_enemy(3, Position(3, 13), name='mut'),
 				generate_enemy(3, Position(4, 11), name='mut', weapon='Slngsht'),
 				generate_enemy(3, Position(1, 12), ai='stand', name='guy', classType='warrior', )
@@ -163,7 +163,7 @@ class ActOneLevels:
 			houses=[
 				House(
 					position=Position(2, 1),
-					preVistedDialogs=[Dialog(
+					preVisitedDialogs=[Dialog(
 						lines=["Save us","and I'll", "owe you"],
 						left_cats=[get_cat_at_position(Position(2, 1))],
 						right_cats=[npc],
@@ -176,7 +176,7 @@ class ActOneLevels:
 						currentlyTalking='npc',
 						lambda_after=lambda: give_item(Position(2,1), itemDict['MystPot'])
 					), Dialog(
-						lines=["Recieved","Mystic","Potion"]
+						lines=["Received","Mystic","Potion"]
 					)],
 					visitCondition=visit_condition
 				),
@@ -243,10 +243,9 @@ class ActOneLevels:
 
 	def _build_level3():
 		checkClearMem('level3')
-		from Shared import get_npc, get_cat, get_mew
+		from Shared import get_npc, get_mew
 		from MapData import get_map
 		npc = get_npc()
-		cat = get_cat()
 		mew = get_mew()
 		level = None
 
@@ -260,10 +259,10 @@ class ActOneLevels:
 		level = Level(
 			map=get_map(3),
 			enemies=[
-				generate_enemy(2, Position(12, 9), name='mut'),
+				generate_enemy(2, Position(3, 10), name='mut',ai='path', path=[Position(11, 9)]),
 				generate_enemy(2, Position(3, 9), name='mut'),
 				generate_enemy(2, Position(5, 14), name='mut'),
-				generate_enemy(2, Position(9, 4), name='mut'),
+				generate_enemy(3, Position(9, 4), name='mut'),
 				generate_enemy(3, Position(14, 3), name='mut'),
 				mew,
 				generate_enemy(4, Position(13, 1), ai='stand', name='guard', classType='warrior')
@@ -274,7 +273,7 @@ class ActOneLevels:
 			houses=[
 				House(
 					position=Position(13, 8),
-					preVistedDialogs=[Dialog(
+					preVisitedDialogs=[Dialog(
 						lines=["There is","a legendary","cat..."],
 						right_cats=[get_cat_at_position(Position(13, 8))],
 						left_cats=[npc],
@@ -301,7 +300,7 @@ class ActOneLevels:
 					visitCondition=lambda: get_cat_at_position(Position(13, 8)) is not None and get_cat_at_position(Position(13, 8)).name == 'mew' and can_give_item(Position(13,8)),
 					dialogs=[
 						Dialog(
-							lines=["They","beileved","me huh..."],
+							lines=["They","believed","me huh..."],
 							right_cats=[get_cat_at_position(Position(13, 8))],
 							left_cats=[npc],
 							currentlyTalking='npc',
@@ -331,12 +330,12 @@ class ActOneLevels:
 						Dialog(
 							lines=["Mew", 'why join', 'them'],
 							left_cats=[mew],
-							right_cats=[cat],
+							right_cats=[get_cat_at_position(Position(10, 13))],
 							currentlyTalking='cat'
 						),
 						Dialog(
 							lines=["meow :("],
-							left_cats=[cat],
+							left_cats=[get_cat_at_position(Position(10, 13))],
 							right_cats=[mew],
 							currentlyTalking='mew',
 							lambda_after=lambda: (
@@ -380,7 +379,7 @@ class ActOneLevels:
 		level = Level(
 			map=get_map(4),
 			enemies=[
-				generate_enemy(2, Position(0, 4), name='pig'),
+				generate_enemy(2, Position(0, 9), name='pig', ai='path', path=[Position(0, 2)]),
 				generate_enemy(3, Position(2, 9), name='snips', weapon='LongBow', classType='sniper'),
 				generate_enemy(3, Position(2, 11), name='pig'),
 				generate_enemy(4, Position(3, 10), name='pig'),
@@ -393,8 +392,8 @@ class ActOneLevels:
 			houses=[
 				House(
 					position=Position(0, 0),
-					preVistedDialogs=[Dialog(
-						lines=["muggle,","freaking", "nerd"],
+					preVisitedDialogs=[Dialog(
+						lines=["muggle...", "no words", "for you"],
 						left_cats=[npc],
 						right_cats=[get_cat_at_position(Position(0, 0))],
 						currentlyTalking='npc'
@@ -406,6 +405,8 @@ class ActOneLevels:
 						left_cats=[npc],
 						currentlyTalking='npc',
 						lambda_after=lambda: give_item(Position(0,0), itemDict['LghtngTm'])
+					), Dialog(
+						lines=["Received","Lightning","Tome"]
 					)],
 					postVisitDialog=[Dialog(
 						lines=["Use it","wisely."],
@@ -417,12 +418,12 @@ class ActOneLevels:
 				House(
 					position=Position(1, 0),
 					dialogs=[Dialog(
-						lines=["If youre","speed is","great"],
+						lines=["If you\'re","speed is","great"],
 						right_cats=[get_cat_at_position(Position(1, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc'
 					), Dialog(
-						lines=["you can","double","attacks"],
+						lines=["you can","double","attack"],
 						right_cats=[get_cat_at_position(Position(1, 0))],
 						left_cats=[npc],
 						currentlyTalking='npc'
@@ -430,7 +431,7 @@ class ActOneLevels:
 				),
 				House(
 					position=Position(7, 13),
-					preVistedDialogs=[Dialog(
+					preVisitedDialogs=[Dialog(
 						lines=["I was working","and toxic", "pigs showed"],
 						right_cats=[get_cat_at_position(Position(7, 13))],
 						left_cats=[npc],
@@ -460,7 +461,7 @@ class ActOneLevels:
 							currentlyTalking='npc',
 							lambda_after=lambda: modify_bank(50)
 						), Dialog(
-							lines=["Recieved","50g"]
+							lines=["Received","50g"]
 						)
 					]
 				)
@@ -469,9 +470,10 @@ class ActOneLevels:
 				Shop(
 					position=Position(3, 9),
 					inventory=[
-						ShopItem(itemDict['Bow'], 20),
-						ShopItem(itemDict['EarthTm'], 25),
-						ShopItem(itemDict['Sword'], 20)
+						ShopItem(itemDict['Tuna'], 3),
+						ShopItem(itemDict['Spear'], 15),
+						ShopItem(itemDict['Sword'], 20),
+						ShopItem(itemDict['EarthTm'], 30)
 					]
 				)
 			],
@@ -541,12 +543,12 @@ class ActOneLevels:
 		level = Level(
 			map=get_map(5),
 			enemies=[
-				generate_enemy(3, Position(2, 6), name='mut'),
-				generate_enemy(4, Position(9, 4), name='mut'),
-				generate_enemy(3, Position(10, 10), name='mut'),
-				generate_enemy(4, Position(12, 8), name='mut'),
-				generate_enemy(5, Position(11, 12), name='mut', weapon='Slngsht'),
-				generate_enemy(5, Position(5, 5), name='mut', weapon='Bow', classType='sniper'),
+				generate_enemy(3, Position(1, 6), name='mut'),
+				generate_enemy(4, Position(5, 5), name='mut'),
+				generate_enemy(5, Position(5, 7), name='mut', weapon='Slngsht'),
+				generate_enemy(4, Position(4, 6), name='mut', ai='path', path=[Position(8, 1)]),
+				generate_enemy(3, Position(4, 15), name='mut', ai='path', path=[Position(11, 15), Position(14, 2)]),
+				generate_enemy(5, Position(3, 15), name='mut', weapon='Bow', classType='sniper'),
 				generate_enemy(6, Position(0, 15), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=5,
@@ -556,7 +558,7 @@ class ActOneLevels:
 				House(
 					multipleVisits=True,
 					position=Position(8, 0),
-					preVistedDialogs=[Dialog(
+					preVisitedDialogs=[Dialog(
 						lines=["I'll trade","any tuna","for 25g"],
 						right_cats=[get_cat_at_position(Position(8, 0))],
 						left_cats=[npc],
@@ -628,8 +630,8 @@ class ActOneLevels:
 					]
 				),
 				House(
-					position=Position(11, 15),
-					preVistedDialogs=[Dialog(
+					position=Position(15, 11),
+					preVisitedDialogs=[Dialog(
 						lines=["I heard","of a cat","named bao"],
 						left_cats=[get_cat_at_position(Position(11, 15))],
 						right_cats=[bub],
@@ -659,12 +661,24 @@ class ActOneLevels:
 				House(
 					position=Position(1, 6),
 					dialogs=[Dialog(
-						lines=["Found","a Sword"],
-						lambda_after=lambda: give_item(Position(2,6), itemDict['Sword']),
+						lines=["Found","Armor"],
+						lambda_after=lambda: give_item(Position(1,6), itemDict['Armor']),
 					)],
-					visitCondition=lambda: get_cat_at_position(Position(2, 6)) is not None and can_give_item(Position(2, 6))
+					visitCondition=lambda: get_cat_at_position(Position(1, 6)) is not None and can_give_item(Position(1, 6))
+				)
+			],
+			shops=[
+				Shop(
+					Position(7, 0),
+					inventory=[
+						ShopItem(itemDict['Sword'], 20),
+						ShopItem(itemDict['Mace'], 20),
+						ShopItem(itemDict['WaterTm'], 30),
+						ShopItem(itemDict['LghtngTm'], 30)
+					]
 				)
 			]
+
 		)
 		return level
 

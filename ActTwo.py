@@ -49,6 +49,26 @@ class ActTwoLevels:
 	def _build_level6():
 		checkClearMem('level6')
 		from MapData import get_map
+
+		Barrier1 = Blockade(
+			positions=[Position(7, 6)]
+		)
+
+		Barrier2 = Blockade(
+			positions=[Position(7, 11)]
+		)
+
+		button1 = Button(
+			position=Position(7, 8),
+			pressAction=lambda: (Barrier1.clear()),
+			unPressAction=lambda: (Barrier1.unclear()),
+		)
+		button2 = Button(
+			position=Position(7, 3),
+			pressAction=lambda: (Barrier2.clear()),
+			unPressAction=lambda: (Barrier2.unclear()),
+		)
+
 		level = Level(
 			map=get_map(6),
 			enemies=[
@@ -58,8 +78,8 @@ class ActTwoLevels:
 				generate_enemy(4, Position(7, 3), name='mut'),
 				generate_enemy(5, Position(13, 13), name='mut', weapon='Slngsht'),
 				generate_enemy(5, Position(11, 8), name='mut', weapon='LongBow', classType='sniper'),
-				generate_enemy(6, Position(15, 8), name='mut', weapon='LghtngTm', classType='warrior'),
-				generate_enemy(5, Position(17, 8), name='mut', weapon='LghtngTm', classType='wizard'),
+				generate_enemy(6, Position(15, 8), name='mut', weapon='Mace', classType='warrior'),
+				generate_enemy(5, Position(17, 8), name='mut', weapon='EarthTm', classType='wizard'),
 				generate_enemy(7, Position(16, 3), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=6,
@@ -69,13 +89,15 @@ class ActTwoLevels:
 				Shop(
 					Position(7, 13),
 					inventory=[
-						ShopItem(itemDict['Tuna'], 3),
-						ShopItem(itemDict['Sword'], 30),
-						ShopItem(itemDict['MstMeal'], 50),
-						ShopItem(itemDict['Mace'], 35)
+						ShopItem(itemDict['LongBow'], 40),
+						ShopItem(itemDict['Bow'], 20),
+						ShopItem(itemDict['MstQll'], 50),
+						ShopItem(itemDict['Mace'], 25)
 					]
 				)
-			]
+			],
+			buttons=[button1, button2],
+			blockades=[Barrier1, Barrier2]
 		)
 		return level
 
@@ -89,8 +111,8 @@ class ActTwoLevels:
 			enemies=[
 				generate_enemy(4, Position(9, 7), name='mut'),
 				generate_enemy(3, Position(10, 8), name='mut'),
-				generate_enemy(4, Position(2, 8), name='mut'),
-				generate_enemy(5, Position(1, 8), name='mut'),
+				generate_enemy(4, Position(3, 4), name='mut', ai='path', path=[Position(0, 8), Position(2, 11)]),
+				generate_enemy(5, Position(4, 4), name='mut', ai='path', path=[Position(1, 8), Position(3, 11)]),
 				generate_enemy(4, Position(6, 11), name='mut', weapon='Slngsht'),
 				generate_enemy(5, Position(2, 2), name='mut', weapon='LongBow', classType='sniper'),
 				generate_enemy(6, Position(10, 2), name='mut', weapon='Spear', classType='warrior'),
@@ -119,27 +141,28 @@ class ActTwoLevels:
 					]
 				)
 			],
-			houses=[House(
+			houses=[
+				House(
 					position=Position(1, 12),
 					dialogs=[Dialog(
-						lines=["I heard","there is","a wizard"],
-						left_cats=[get_cat_at_position(Position(1, 12))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					)],
+						lines=["You have","come far","take this"],
+						left_cats=[npc],
+						right_cats=[get_cat_at_position(Position(1, 12))],
+						currentlyTalking='npc',
+						lambda_after=lambda: give_item(Position(1, 12), itemDict['MagPowder'])
+					), Dialog(
+						lines=["Received","Magic", "Powder"],
+					), Dialog(
+						lines=["Should give","a bit","extra exp"],
+						left_cats=[npc],
+						right_cats=[get_cat_at_position(Position(1, 12))],
+						currentlyTalking='npc',
+					)]
 				), House(
 					position=Position(5, 7),
 					dialogs=[Dialog(
 						lines=["I heard","there is","a wizard"],
 						left_cats=[get_cat_at_position(Position(5, 7))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					)]
-				), House(
-					position=Position(2, 0),
-					dialogs=[Dialog(
-						lines=["I heard","there is","a wizard"],
-						left_cats=[get_cat_at_position(Position(2, 0))],
 						right_cats=[npc],
 						currentlyTalking='npc'
 					)]

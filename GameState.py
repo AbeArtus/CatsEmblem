@@ -664,7 +664,7 @@ class GameState:
             house = self.cat_is_on_house()
             selCat = self.get_selected_cat()
             if not house.can_visit():
-                for dialog in house.preVistedDialogs:
+                for dialog in house.preVisitedDialogs:
                     self.add_dialog(dialog)
             elif not house.visited:
                 house.visit()
