@@ -2,59 +2,16 @@ from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
 from Items import itemDict
-from Shared import checkClearMem, Conversation, Dialog, House, Position, Shop, ShopItem, Level, generate_enemy
-checkClearMem("Shared imported")
+from Shared import Conversation, Dialog, House, Position, Shop, ShopItem, Level, generate_enemy
 
-_add_to_party = None
-_update_bank = None
-_can_give_item = None
-_give_item = None
-_get_cat_at_pos = None
-_get_selected_cat = None
-checkClearMem("Before setting game state callbacks")
+from Callbacks import add_to_party as add_party_member, update_bank as modify_bank, can_give_item, give_item, get_cat_at_pos as get_cat_at_position, get_selected_cat
 
-def set_game_state_callbacks(add_to_party, update_bank, can_give_item, give_item, get_cat_at_pos, get_selected_cat):
-	global _add_to_party, _update_bank, _can_give_item, _give_item, _get_cat_at_pos, _get_selected_cat
-	_add_to_party = add_to_party
-	_update_bank = update_bank
-	_can_give_item = can_give_item
-	_give_item = give_item
-	_get_cat_at_pos = get_cat_at_pos
-	_get_selected_cat = get_selected_cat
-checkClearMem("After setting game state callbacks")
+def set_game_state_callbacks(*_args):
+	pass
 
-def add_party_member(cat):
-	if _add_to_party:
-		_add_to_party(cat)
-
-def modify_bank(amount):
-	if _update_bank:
-		_update_bank(amount)
-
-def can_give_item(position: Position) -> bool:
-	if _can_give_item:
-		return _can_give_item(position)
-	return False
-
-def give_item(position: Position, item) -> bool:
-	if _give_item:
-		_give_item(position, item)
-
-def get_cat_at_position(position: Position):
-	if _get_cat_at_pos:
-		return _get_cat_at_pos(position)
-	return None
-
-def get_selected_cat():
-	if _get_selected_cat:
-		return _get_selected_cat()
-	return None
-
-checkClearMem("After defining game state callback functions")
 
 class ActOneLevels:
 	def _build_level1():
-		checkClearMem('level1')
 		from MapData import get_map
 		from Shared import get_npc, get_cat, get_tac
 		npc = get_npc()
@@ -138,7 +95,6 @@ class ActOneLevels:
 		return level
 
 	def _build_level2():
-		checkClearMem('level2')
 		from MapData import get_map
 		from Shared import get_npc
 		npc = get_npc()
@@ -242,7 +198,6 @@ class ActOneLevels:
 		return level
 
 	def _build_level3():
-		checkClearMem('level3')
 		from Shared import get_npc, get_mew
 		from MapData import get_map
 		npc = get_npc()
@@ -357,7 +312,6 @@ class ActOneLevels:
 		return level
 
 	def _build_level4():
-		checkClearMem('level4')
 		from Shared import get_npc, get_cat, get_bao
 		from MapData import get_map
 		npc = get_npc()
@@ -516,11 +470,9 @@ class ActOneLevels:
 		return level
 
 	def _build_level5():
-		checkClearMem('level5')
-		from Shared import get_npc, get_bub
+		from Shared import get_npc
 		from MapData import get_map
 		npc = get_npc()
-		bub = get_bub()
 
 		def houseCondition(position: Position):
 			selCat = get_cat_at_position(position)
@@ -543,8 +495,8 @@ class ActOneLevels:
 		level = Level(
 			map=get_map(5),
 			enemies=[
-				generate_enemy(3, Position(1, 6), name='mut'),
-				generate_enemy(4, Position(5, 5), name='mut'),
+				generate_enemy(3, Position(1, 6), name='mut', weapon='Sword'),
+				generate_enemy(4, Position(5, 5), name='mut', weapon='Sword'),
 				generate_enemy(5, Position(5, 7), name='mut', weapon='Slngsht'),
 				generate_enemy(4, Position(4, 6), name='mut', ai='path', path=[Position(8, 1)]),
 				generate_enemy(3, Position(4, 15), name='mut', ai='path', path=[Position(11, 15), Position(14, 2)]),
@@ -631,32 +583,15 @@ class ActOneLevels:
 				),
 				House(
 					position=Position(15, 11),
-					preVisitedDialogs=[Dialog(
-						lines=["I heard","of a cat","named bao"],
-						left_cats=[get_cat_at_position(Position(11, 15))],
-						right_cats=[bub],
-						currentlyTalking='bub'
-					), Dialog(
-						lines=["I will", "only talk", "to bao"],
-						left_cats=[get_cat_at_position(Position(11, 15))],
-						right_cats=[bub],
-						currentlyTalking='bub'
-					)],
 					dialogs=[Dialog(
-						lines=["Hello","bao, I","stinky..."],
-						left_cats=[get_cat_at_position(Position(11, 15))],
-						right_cats=[bub],
-						currentlyTalking='bub'
+						lines=["Take this","ring"],
+						left_cats=[get_cat_at_position(Position(15, 11))],
+						right_cats=[npc],
+						currentlyTalking='npc'
 					), Dialog(
-						lines=["I","wish to","join you"],
-						left_cats=[get_cat_at_position(Position(11, 15))],
-						right_cats=[bub],
-						currentlyTalking='bub',
-						lambda_after=lambda: (bub.set_position(Position(11, 14)), add_party_member(bub))
-					), Dialog(
-						lines=["bub","joined the","party"],
-					)],
-					visitCondition=lambda: get_cat_at_position(Position(11, 15)) is not None and get_cat_at_position(Position(11, 15)).name == 'bao',
+						lines=["Received","Ring"],
+						lambda_after=lambda: give_item(Position(15,11), itemDict['PowerRing'])
+					)]
 				),
 				House(
 					position=Position(1, 6),
@@ -682,4 +617,3 @@ class ActOneLevels:
 		)
 		return level
 
-checkClearMem('levels ended')

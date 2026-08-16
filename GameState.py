@@ -2,10 +2,8 @@ import gc
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
-from Shared import checkClearMem, fetch_level, Cat, Dialog, Menu, Option, Position, Shop, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite, Level
-checkClearMem('Imported Shared.py')
-from MapData import canWalkOn, tileEncumberence
-checkClearMem('Imported MapData.py')
+print("GameState.py loaded")
+from Shared import fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite
 
 _save_data = None
 
@@ -15,7 +13,6 @@ def get_save_data():
         import thumbySaves as thumbySaveData
         thumbySaveData.saveData.setName("CatsEmblem")
         _save_data = thumbySaveData.saveData
-        checkClearMem('Imported thumbySaves.py (lazy)')
     return _save_data
 
 # --- CONSTANTS ---
@@ -44,14 +41,16 @@ class GameState:
     def save_game(self):
         """Save the current game state to persistent storage."""
         saveData = get_save_data()
+
         saveData.delItem("gameState-bank")
-        saveData.setItem("gameState-bank", self.bank)
-        for cat in self.party:
-            cat.save_state()
         saveData.delItem("gameState-level-number")
-        saveData.setItem("gameState-level-number", self.level.number)
         saveData.delItem("gameState-party")
+
+        saveData.setItem("gameState-bank", self.bank)
+        saveData.setItem("gameState-level-number", self.level.number)
         saveData.setItem("gameState-party", [cat.name for cat in self.party])
+        for cat in self.party:
+            cat.save_state(saveData)
         saveData.save()
 
     def load_game(self):
@@ -65,6 +64,7 @@ class GameState:
             cat_stats = saveData.getItem(f"{cat_name}_stats")
             
             cat_items_names = saveData.getItem(f"{cat_name}_items")
+            cat_item_durabilities = saveData.getItem(f"{cat_name}_durabilities")
             
             if len(cat_stats) == 21:
                 stats = Stats(
@@ -82,6 +82,9 @@ class GameState:
                 position = Position(cat_stats[9], cat_stats[10])
                 
                 items = [itemDict[item_name] for item_name in cat_items_names if item_name in itemDict]
+                for i, item in enumerate(items):
+                    if item.type == 'weapon' and i < len(cat_item_durabilities):
+                        item.durability = cat_item_durabilities.pop(0)
 
                 classType = 'pupil'
                 for key, value in classEnum.items():
@@ -117,10 +120,9 @@ class GameState:
         
         self.party = party
         
+        gc.collect()
         level_number = saveData.getItem("gameState-level-number")
-
-        nextLevel = fetch_level(level_number)
-        self.load_level(nextLevel)
+        self.load_level(fetch_level(level_number))
 
     def has_saved_game(self):
         saveData = get_save_data()
@@ -130,20 +132,26 @@ class GameState:
             and saveData.hasItem("gameState-bank")
             ## check that we have the stats and items for each cat in the party
             and all(
-                saveData.hasItem(f"{cat_name}_stats") and saveData.hasItem(f"{cat_name}_items")
+                saveData.hasItem(f"{cat_name}_stats") and saveData.hasItem(f"{cat_name}_items") and saveData.hasItem(f"{cat_name}_durabilities")
                 for cat_name in saveData.getItem("gameState-party")
             )
         )
 
-    def load_level(self, level: Level | None):
+    def load_level(self, level=None):
+        self.level = None
+        self.cached_domain = None
+        self.combat_log = []
+        self.dialog = []
+        self.menu = None
+        gc.collect()
         if level is None:
-            self.level = None
             return
         for i, p in enumerate(self.party):
             p.set_position(level.startingPositions[i])
             p.restore_state()
         self.level = level
         self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
+        gc.collect()
 
     def set_state(self, new_state: str):
         if self.state == 'enemy-turn' and new_state == 'map':
@@ -159,8 +167,10 @@ class GameState:
         self.state = new_state
 
     def start_game(self):
+        gc.collect()
         self.party = [get_cat()]
         self.load_level(fetch_level(1))
+        gc.collect()
 
     def load_next_level(self):
         n = self.level.number
@@ -174,6 +184,8 @@ class GameState:
             self.load_level(fetch_level(9))
             self.save_game()
         elif n == 9:
+            self.load_level(fetch_level(n + 1))
+        elif n == 10:
             self.state = 'end'
         else:
             self.state = 'gameover'
@@ -207,85 +219,31 @@ class GameState:
         self.lastPos = Position()
 
     def get_selected_cat(self):
-        for c in self.party + self.level.enemies:
-            if c.id == self.selectedCatId if self.selectedCatId else "":
+        if not self.selectedCatId:
+            return None
+        enemies = self.level.enemies if self.level else []
+        for c in self.party + enemies:
+            if c.id == self.selectedCatId:
                 return c
         return None
-    
-    def find_valid_positions(self, cat: Cat, range: int):
-        map_width = len(self.level.map[0])
-        map_height = len(self.level.map)
 
-        def is_walkable(position):
-            if not (0 <= position.x < map_width and 0 <= position.y < map_height):
-                return False
-            tile = self.level.map[position.y][position.x]
-            return tile in canWalkOn and canWalkOn[tile]
-
-        def get_occupying_unit(position):
-            for unit in self.party + self.level.enemies:
-                if unit.id != cat.id and unit.position == position:
-                    return unit
-            return None
-
-        def is_barrier(position):
-            for blockade in self.level.blockades:
-                if position in blockade.positions and not blockade.cleared:
-                    return True
-            return False
-
-        visited = set()
-        valid_positions = set()
-        position_weight = dict()
-        queue = [(cat.position, range)]
-
-        while queue:
-            current_pos, remaining_range = queue.pop(0)
-
-            if remaining_range < 0 or (current_pos in visited and position_weight.get(f"{current_pos.x},{current_pos.y}", -1) >= remaining_range):
-                continue
-
-            visited.add(current_pos)
-            position_weight[f"{current_pos.x},{current_pos.y}"] = remaining_range
-
-            if not is_walkable(current_pos):
-                continue
-
-            occupying_unit = get_occupying_unit(current_pos)
-            occupied_by_enemy = occupying_unit is not None and occupying_unit.enemy != cat.enemy
-            occupied_by_ally = occupying_unit is not None and occupying_unit.enemy == cat.enemy
-
-            if is_barrier(current_pos):
-                continue
-
-            # Allies can be passed through but cannot be a final standing tile.
-            if occupied_by_enemy:
-                continue
-            if not occupied_by_ally or (occupied_by_ally and not cat.enemy) or current_pos == cat.position:
-                valid_positions.add(current_pos)
-
-            if remaining_range > 0:
-                neighbors = []
-                if current_pos.x >= cat.position.x:
-                    neighbors.append(Position(current_pos.x + 1, current_pos.y))
-                if current_pos.x <= cat.position.x:
-                    neighbors.append(Position(current_pos.x - 1, current_pos.y))
-                if current_pos.y >= cat.position.y:
-                    neighbors.append(Position(current_pos.x, current_pos.y + 1))
-                if current_pos.y <= cat.position.y:
-                    neighbors.append(Position(current_pos.x, current_pos.y - 1))
-                for neighbor in neighbors:
-                    if is_walkable(neighbor):
-                        encumbrance = tileEncumberence.get(self.level.map[neighbor.y][neighbor.x], 1)
-                        queue.append((neighbor, remaining_range - encumbrance))
-
-        return list(valid_positions)
+    def find_valid_positions(self, cat: Cat, range_distance: int):
+        if not self.level:
+            return []
+        return self.level.find_valid_positions(cat, range_distance, self.party)
 
     def end_turn(self):
+        self.cancel_cat_select()
         if len(self.level.enemies) == 0:
             for cat in self.party:
                 cat.set_exhausted(False)
                 cat.set_moved(False)
+            self.add_dialog(Dialog(
+                lines=["Player Turn"],
+                overlay=True,
+                timeout=1
+            ))
+            self.exit_menu()
         elif self.player_turn:
             for cat in self.party:
                 cat.set_exhausted(False)
@@ -315,14 +273,15 @@ class GameState:
         new_x = max(0, min(len(self.level.map[0]) - 1, x))
         new_y = max(0, min(len(self.level.map) - 1, y))
         selCat = self.get_selected_cat()
-        if selCat and self.cached_domain:
-            if Position(new_x, new_y) not in self.cached_domain:
-                return
-
-        if selCat:
-            for blockade in self.level.blockades:
-                if Position(new_x, new_y) in blockade.positions and not blockade.cleared:
+        if self.state == 'map':
+            if selCat and self.cached_domain:
+                if (new_x, new_y) not in self.cached_domain:
                     return
+
+            if selCat:
+                for blockade in self.level.blockades:
+                    if Position(new_x, new_y) in blockade.positions and not blockade.cleared:
+                        return
 
         self.level.selectorPosition.x = new_x
         self.level.selectorPosition.y = new_y
@@ -349,6 +308,9 @@ class GameState:
                 return shop
         return None
 
+    def update_bank(self, amount):
+        self.bank += amount
+
     def cat_is_on_house(self):
         cat = self.get_selected_cat()
         if not cat:
@@ -363,512 +325,28 @@ class GameState:
         self.state = 'menu'
 
     def exit_menu(self):
-        self.menu.leave_action() if self.menu and self.menu.leave_action else None
         self.menu = None
         self.state = 'map'
 
-    def open_shop_menu(self, shop: Shop):
-        shop_menu_options: list[Option] = []
-
-        def exit_menu():
-            selCat = self.get_selected_cat()
-            selCat.set_exhausted(True)
-            self.cancel_cat_select()
-
-        for shop_item in shop.inventory:
-            def make_purchase_action(item=shop_item):
-                def purchase():
-                    
-                    selCat = self.get_selected_cat()
-                    if selCat and len(selCat.items) >= 4:
-                        self.add_dialog(Dialog(
-                            left_cats=[selCat],
-                            currentlyTalking=selCat.name,
-                            lines=["Inventory", "Full!"],
-                        ))
-                        return
-                    if self.bank >= item.price:
-                        self.bank -= item.price
-                        selCat.items.append(item.item)
-                        self.add_dialog(Dialog(
-                            left_cats=[selCat],
-                            currentlyTalking=selCat.name,
-                            lines=[f"Purchased",
-                                   f"{item.item.name}!"],
-                        ))
-                    else:
-                        self.add_dialog(Dialog(
-                            left_cats=[selCat],
-                            currentlyTalking=selCat.name,
-                            lines=["Not enough",
-                                   "gold!"],
-                        ))
-                return purchase
-
-            shop_menu_options.append(Option(
-                label= f"{shop_item.price} {shop_item.item.name}",
-                action= make_purchase_action(),
-                condition= lambda: True
-            ))
-        self.enter_menu(menu = Menu(
-            options=[shop_menu_options],
-            title= [lambda: f"Shop {self.bank}G"],
-            leave_action=exit_menu
-        ))
+    def open_shop_menu(self, shop):
+        import Menus
+        Menus.install(GameState)
+        return self.open_shop_menu(shop)
 
     def open_item_menu(self, option_index=0):
-        selectedCat = self.get_selected_cat()
-        if selectedCat:
-            item_menu_options: list[Option] = []
-            current_option_index = self.menu.option_index if self.menu else 0
-
-            def exit_menu():
-                self.open_unit_menu(current_option_index)
-
-            for i, item in enumerate(selectedCat.items):
-                def open_item_action_menu(index=i):
-                    if selectedCat.exhausted and item.type in ['consumable', 'promote']:
-                        return lambda: None
-                    def item_action_menu():
-                        item = selectedCat.items[index]
-                        item_action_options: list[Option] = []
-
-                        if item.effect and item.type == 'consumable' and not selectedCat.exhausted:
-                            def use_item_action():
-                                def use_item():
-                                    selectedCat.use_item(index)
-                                    exit_menu()
-                                return use_item()
-
-                            item_action_options.append(Option(
-                                label= "Use",
-                                action= use_item_action,
-                                condition= lambda: not selectedCat.exhausted
-                            ))
-                        if item.type == 'weapon' and index != 0:
-                            def equip_item_action(item_index=index):
-                                def equip_item(item_index=item_index):
-                                    temp = selectedCat.items[0]
-                                    selectedCat.items[0] = selectedCat.items[item_index]
-                                    selectedCat.items[item_index] = temp
-
-                                    self.state = 'map'
-                                return equip_item
-
-                            item_action_options.append(Option(
-                                label= "Equip",
-                                action= equip_item_action(index),
-                                condition= lambda: item.can_use(selectedCat.classType)
-                            ))
-                        if item.type == 'promote' and selectedCat.level >= 5 and selectedCat.classType == 'pupil':
-                            def promote_action():
-                                def promote():
-                                    promotion_class = item.effect.get('promote', '')
-                                    selectedCat.promote(promotion_class)
-                                    selectedCat.items.pop(index)
-                                    self.add_dialog(Dialog(
-                                        left_cats=[selectedCat],
-                                        currentlyTalking=selectedCat.name,
-                                        lines=["*promoted to", f"{promotion_class}*"],
-                                    ))
-                                    self.state = 'map'
-                                    selectedCat.set_exhausted(True)
-                                    self.selectedCatId = None
-                                return promote
-
-                            item_action_options.append(Option(
-                                label= "Promote",
-                                action= promote_action(),
-                                condition= lambda: not selectedCat.exhausted
-                            ))
-
-                        neighbors = [
-                            Position(selectedCat.position.x + 1, selectedCat.position.y),
-                            Position(selectedCat.position.x - 1, selectedCat.position.y),
-                            Position(selectedCat.position.x, selectedCat.position.y + 1),
-                            Position(selectedCat.position.x, selectedCat.position.y - 1),
-                        ]
-                        nearby_party_members = [
-                            p for p in self.party if p.position in neighbors and p != selectedCat
-                        ]
-                        if nearby_party_members:
-                            def trade_item_action(item_index=index):
-                                def trade_item():
-                                    trade_target_options: list[Option] = []
-                            
-                                    for target_cat in nearby_party_members:
-                                        def select_target_cat(target=target_cat):
-                                            def open_trade_with_target(target=target_cat):
-                                                target_item_options: list[Option] = []
-                            
-                                                for target_item_index, target_item in enumerate(target.items):
-                                                    def select_target_item(target_index=target_item_index):
-                                                        def perform_trade():
-                                                            selected_item = selectedCat.items[item_index]
-                                                            target_item = target.items[target_index]
-                                                            selectedCat.items[item_index] = target_item
-                                                            target.items[target_index] = selected_item
-                                                        
-                                                            selectedCat.set_exhausted(True)
-                                                            self.state = 'map'
-                                                            self.selectedCatId = None
-                            
-                                                        return perform_trade
-                            
-                                                    target_item_options.append(Option(
-                                                        label= target_item.name if target_item else "--",
-                                                        action= select_target_item(target_item_index),
-                                                        condition= lambda: True
-                                                    ))
-
-                                                if len(target.items) < target.max_items:
-                                                    def trade_with_empty_slot():
-                                                        def perform_trade_with_empty():
-                                                            selected_item = selectedCat.items[item_index]
-                                                            target.items.append(selected_item)
-                                                            selectedCat.items.pop(item_index)
-
-                                                            selectedCat.set_exhausted(True)
-                                                            self.selectedCatId = None
-                                                            self.state = 'map'
-                            
-                                                        return perform_trade_with_empty
-                            
-                                                    target_item_options.append(Option(
-                                                        label= "--",
-                                                        action= trade_with_empty_slot(),
-                                                        condition= lambda: True
-                                                    ))
-                            
-                                                self.enter_menu(menu=Menu(
-                                                    options=[target_item_options],
-                                                    title=[lambda: f"Trade with {target.name}"],
-                                                    leave_action=lambda: self.open_item_menu(index)
-                                                ))
-                            
-                                            return open_trade_with_target
-                            
-                                        trade_target_options.append(Option(
-                                            label= target_cat.name,
-                                            action= select_target_cat(target_cat),
-                                            condition= lambda: True
-                                        ))
-                            
-                                    self.enter_menu(menu=Menu(
-                                        options=[trade_target_options],
-                                        title=[lambda: "Select Trade Target"],
-                                        leave_action=lambda: self.open_item_menu(index)
-                                    ))
-                            
-                                return trade_item
-
-                            item_action_options.append(Option(
-                                label= "Trade",
-                                action= trade_item_action(index),
-                                condition= lambda: not selectedCat.exhausted
-                            ))
-
-                        def open_item_stats_menu(sel_item=item):
-                            stats_options: list[Option] = [
-                                Option(label=f"type:{sel_item.type}", action=lambda: None)
-                            ]
-
-                            if sel_item.type == 'weapon':
-                                stats_options.extend([
-                                    Option(label=f"atk:{sel_item.attack}", action=lambda: None),
-                                    Option(label=f"acc:{sel_item.accuracy}", action=lambda: None),
-                                    Option(label=f"rng:{sel_item.range}", action=lambda: None),
-                                    Option(label=f"crt:{sel_item.crit}", action=lambda: None),
-                                ])
-                            elif sel_item.type == 'consumable' and sel_item.effect and 'heal' in sel_item.effect:
-                                stats_options.append(Option(label=f"heal:{sel_item.effect['heal']}", action=lambda: None))
-                            elif sel_item.type == 'promote' and sel_item.effect and 'promote' in sel_item.effect:
-                                stats_options.append(Option(label=f"class:{sel_item.effect['promote']}", action=lambda: None))
-
-                            stats_options.append(Option(label="Back", action=lambda: self.open_item_menu(index)))
-                            self.enter_menu(menu=Menu(
-                                options=[stats_options],
-                                title=[lambda: f"{sel_item.name} Stats"],
-                                leave_action=lambda: self.open_item_menu(index)
-                            ))
-
-                        item_action_options.insert(0, Option(
-                            label="Stats",
-                            action=open_item_stats_menu,
-                            condition=lambda: True
-                        ))
-
-                        self.enter_menu(menu=Menu(
-                            options=[item_action_options],
-                            title=[lambda: f"{item.name} Actions"],
-                            leave_action=lambda: self.open_item_menu(index)
-                        ))
-
-                    return item_action_menu
-
-                item_menu_options.append(Option(
-                    label= item.name,
-                    action= open_item_action_menu(),
-                    condition= lambda: True
-                ))
-
-            self.enter_menu(menu=Menu(
-                options=[item_menu_options],
-                title=[lambda: "Item Menu"],
-                option_index=option_index,
-                leave_action=exit_menu
-            ))
+        import Menus
+        Menus.install(GameState)
+        return self.open_item_menu(option_index)
 
     def open_unit_menu(self, option_index=0):
-        selectedCat = self.get_selected_cat()
+        import Menus
+        Menus.install(GameState)
+        return self.open_unit_menu(option_index)
 
-        def exit_menu():
-            self.state = 'map'
-            self.cancel_cat_select()
-
-        def check_house_condition():
-            house = self.cat_is_on_house()
-            if selectedCat and selectedCat.exhausted:
-                return False
-            if not house:
-                return False
-            if house.can_visit():
-                return True
-            if house.has_more_dialogs():
-                return True
-            return False
-        
-        def can_move():
-            cat = self.get_selected_cat()
-            return cat is not None and not cat.moved and not cat.exhausted
-
-        def move_action():
-            self.state = 'map'
-
-        def wait_action():
-            cat = self.get_selected_cat()
-            if cat:
-                cat.set_exhausted(True)
-            self.cancel_cat_select()
-            self.state = 'map'
-
-        def fight_action():
-            self.state = 'enemy-select'
-
-        def seize_action():
-            self.cancel_cat_select()
-            self.state = 'map'
-            GameState.load_next_level(self)
-
-        def visit_house():
-            house = self.cat_is_on_house()
-            selCat = self.get_selected_cat()
-            if not house.can_visit():
-                for dialog in house.preVisitedDialogs:
-                    self.add_dialog(dialog)
-            elif not house.visited:
-                house.visit()
-                for dialog in house.dialogs:
-                    self.add_dialog(dialog)
-            else:
-                for dialog in house.postVisitDialog:
-                    self.add_dialog(dialog)
-            selCat.set_exhausted(True)
-            selCat.set_moved(True)
-            exit_menu()
-
-        def can_attack():
-            cat = self.get_selected_cat()
-            if not cat:
-                return False
-            if cat.exhausted:
-                return False
-            for enemy in self.level.enemies:
-                dx = abs(enemy.position.x - cat.position.x)
-                dy = abs(enemy.position.y - cat.position.y)
-                catWeapon = cat.get_weapon()
-                if catWeapon and dx + dy in catWeapon.get_range():
-                    return True
-            return False
-        
-        def check_shop_condition():
-            shop = self.cat_is_on_shop()
-            selCat = self.get_selected_cat()
-            if selCat and selectedCat.exhausted:
-                return False
-            return shop is not None
-        
-        def open_shop_action():
-            shop = self.cat_is_on_shop()
-            if shop:
-                self.open_shop_menu(shop)
-                self.needsUpdate = True
-
-        def can_talk():
-            for conversation in self.level.conversations:       
-                if not selectedCat:
-                    return False
-                conversationNames = [conversation.nameOne, conversation.nameTwo]
-                unitsInRange = self.units_in_range(selectedCat.position, 1)
-                if len(unitsInRange) == 0:
-                    return False
-                firstFound = any(conversationNames[0] == unit.name for unit in unitsInRange)
-                secondFound = any(conversationNames[1] == unit.name for unit in unitsInRange)
-                if firstFound and secondFound and conversation.condition():
-                    return True
-            return False
-        
-        def talk_action():
-            for conversation in self.level.conversations:
-                conversationNames = [conversation.nameOne, conversation.nameTwo]
-                unitsInRange = self.units_in_range(self.level.selectorPosition, 1)
-                firstFound = [conversationNames[0] == unit.name for unit in unitsInRange]
-                secondFound = [conversationNames[1] == unit.name for unit in unitsInRange]
-                if firstFound and secondFound:
-                    for dialog in conversation.dialogs:
-                        self.add_dialog(dialog)
-                    # remove conversation so it can't be triggered again
-                    self.level.conversations.remove(conversation)
-                    break
-
-        def can_press():
-            cat = self.get_selected_cat()
-            if not cat:
-                return False
-            for button in self.level.buttons:
-                if button.position == cat.position and button.can_press():
-                    return True
-            return False
-
-        def press_action():
-            cat = self.get_selected_cat()
-            if not cat:
-                return
-            for button in self.level.buttons:
-                if button.position == cat.position and button.can_press():
-                    button.press()
-                    cat.set_exhausted(True)
-                    cat.set_moved(True)
-                    self.add_dialog(Dialog(
-                        left_cats=[cat],
-                        currentlyTalking=cat.name,
-                        lines=["*pressed the", "button*"],
-                    ))
-                    break
-
-        menu_title = f"{selectedCat.name} hp:{selectedCat.hp}" if selectedCat else "Unit Menu"
-        self.enter_menu(menu = Menu(
-            options=[[
-                Option(
-                    label= "Seize",
-                    action= seize_action,
-                    condition= lambda: selectedCat and selectedCat.position == self.level.seizePosition
-                ), Option(
-                    label= "Fight",
-                    action= fight_action,
-                    condition= can_attack
-                ), Option(
-                    label="Press",
-                    action= press_action,
-                    condition= can_press
-                ), Option(
-                    label= "Move",
-                    action= move_action,
-                    condition= can_move
-                ), Option(
-                    label= "Wait",
-                    action= wait_action,
-                    condition= lambda: self.get_selected_cat() is not None and not self.get_selected_cat().exhausted
-                ), Option(
-                    label= "Talk",
-                    action= talk_action,
-                    condition= can_talk
-                ), Option(
-                    label= "Visit",
-                    action= visit_house,
-                    condition= check_house_condition
-                ), Option(
-                    label= "Shop",
-                    action= open_shop_action,
-                    condition= check_shop_condition
-                ), Option(
-                    label= "Items",
-                    action= self.open_item_menu,
-                    condition= lambda: selectedCat is not None and len(selectedCat.items) > 0
-                ), Option(
-                    label= "Stats",
-                    action= lambda: self.open_stats(selectedCat),
-                    condition= lambda: self.selectedCatId is not None
-                ), Option(
-                    label= "End Turn",
-                    action= self.end_turn,
-                    condition= lambda: True
-                )
-            ]],
-            title=[lambda: menu_title],
-            option_index=option_index,
-            leave_action=exit_menu
-        ))
-
-    def open_stats(self, unit: Cat | None):
-        if not unit:
-            self.state = 'map'
-            return
-
-        def close_stats():
-            self.state = 'map'
-            self.cancel_cat_select()
-
-        stats_options = [
-            Option(label=f"lv{unit.level} {unit.classType}", action=lambda: None),
-            Option(label=f"hp: {unit.hp}/{unit.stats.max_hp}", action=lambda: None),
-            Option(label=f"xp: {unit.exp}/{unit.next_level_exp}", action=lambda: None),
-            Option(label=f"attk: {unit.stats.attack}", action=lambda: None),
-            Option(label=f"defn: {unit.stats.defense}", action=lambda: None),
-            Option(label=f"speed: {unit.stats.speed}", action=lambda: None),
-            Option(label=f"luck: {unit.stats.luck}", action=lambda: None),
-            Option(label=f"rang: {unit.stats.range}", action=lambda: None),
-            Option(label="Back", action=close_stats),
-        ]
-
-        growthRate_options = [
-            Option(label=f"atk: {unit.growthRates.attack}", action=lambda: None),
-            Option(label=f"def: {unit.growthRates.defense}", action=lambda: None),
-            Option(label=f"hp: {unit.growthRates.max_hp}", action=lambda: None),
-            Option(label=f"spd: {unit.growthRates.speed}", action=lambda: None),
-            Option(label=f"lck: {unit.growthRates.luck}", action=lambda: None),
-            Option(label=f"rng: {unit.growthRates.range}", action=lambda: None),
-            Option(label="Back", action=close_stats),
-        ]
-
-        WeaponExp_options = [
-            Option(label=f"sword: {unit.weaponExp.sword}", action=lambda: None),
-            Option(label=f"repeatr: {unit.weaponExp.repeater}", action=lambda: None),
-            Option(label=f"longbow: {unit.weaponExp.longbow}", action=lambda: None),
-            Option(label=f"bow: {unit.weaponExp.bow}", action=lambda: None),
-            Option(label=f"lghtng: {unit.weaponExp.lightning}", action=lambda: None),
-            Option(label=f"water: {unit.weaponExp.water}", action=lambda: None),
-            Option(label=f"earth: {unit.weaponExp.earth}", action=lambda: None),
-            Option(label=f"mace: {unit.weaponExp.mace}", action=lambda: None),
-            Option(label=f"spear: {unit.weaponExp.spear}", action=lambda: None),
-            Option(label="Back", action=close_stats),
-        ]
-
-        item_options: list[Option] = []
-        for item in unit.items:
-            item_options.append(Option(label=f"{item.name}", action=lambda: None))
-        if len(item_options) == 0:
-            item_options.append(Option(label="none", action=lambda: None))
-        item_options.append(Option(label="Back", action=close_stats))
-
-        stats_menu = Menu(
-            options=[stats_options, item_options, WeaponExp_options, growthRate_options],
-            title=[lambda: unit.name, lambda: f"{unit.name} Items", lambda: f"{unit.name} WeapXp", lambda: f"{unit.name} Growth"],
-            option_index=0,
-            leave_action=close_stats
-        )
-        
-        self.enter_menu(stats_menu)
+    def open_stats(self, unit=None):
+        import Menus
+        Menus.install(GameState)
+        return self.open_stats(unit)
 
     def is_occupied(self, position: Position):
         return any(cat.position == position for cat in self.party + self.level.enemies)
