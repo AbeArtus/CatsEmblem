@@ -153,9 +153,9 @@ def battle(attacker: Cat, defender: Cat):
 	attackerExp = 0
 	defenderExp = 0
 
-	expMultiplier = defender.level / attacker.level
+	expMultiplier = defender.level / attacker.level if defender.enemy else attacker.level / defender.level
 
-	attackerExp =+ record_attack(attacker, defender)
+	attackerExp += record_attack(attacker, defender)
 	if defender.hp <= 0:
 		attacker.add_exp(int(defender.stats.max_hp * expMultiplier), addDialog)
 		return
@@ -514,11 +514,8 @@ def get_attack_tile(cat: Cat):
 while True:
 	frame += 1
 
-	partyFullyExhausted = all(p.exhausted for p in gameState.party) if gameState.party else None
-	if partyFullyExhausted is not None and partyFullyExhausted and gameState.player_turn and gameState.state == 'map':
-		thumby.audio.play(note_to_freq("Ab5"), 100)
-		gameState.end_turn()
 
+	partyFullyExhausted = all(p.exhausted for p in gameState.party) if gameState.party else None
 	if (gameState.state == 'map' or gameState.state == 'enemy-turn' or gameState.state == 'enemy-select')\
 	and not len(gameState.dialog) > 0 and not len(gameState.combat_log) > 0:
 		if currentFont == "5x7":
@@ -639,6 +636,10 @@ while True:
 			if dialog.decision and thumby.buttonB.justPressed():
 				thumby.audio.play(note_to_freq("C6"), 20)
 				gameState.pop_dialog()
+
+	elif partyFullyExhausted is not None and partyFullyExhausted and gameState.player_turn and gameState.state == 'map':
+		thumby.audio.play(note_to_freq("Ab5"), 100)
+		gameState.end_turn()
 
 	elif gameState.state == 'title':
 		thumby.display.fill(thumby.display.WHITE)
@@ -837,13 +838,17 @@ while True:
 						gameState.update_selector_position(closest_tile.x, closest_tile.y)
 						readyForBattle = True
 				elif closest_tile and not target:
+					houseToDestroy = None
 					for house in gameState.level.houses:
 						if house.position == closest_tile and not house.destroyed:
-							house.destroy()
-							thumby.audio.play(note_to_freq("G4"), 80)
+							houseToDestroy = house
+							break
+					if houseToDestroy:
+						thumby.audio.play(note_to_freq("G4"), 80)	
+					else:
+						thumby.audio.play(note_to_freq("F5"), 20)
 					activeEnemy.set_position(closest_tile)
 					activeEnemy.set_moved(True)
-					thumby.audio.play(note_to_freq("F5"), 20)
 					activeEnemy.set_exhausted(True)
 					gameState.update_selector_position(closest_tile.x, closest_tile.y)
 					activeEnemy = None
