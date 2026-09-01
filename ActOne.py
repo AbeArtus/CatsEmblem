@@ -2,7 +2,7 @@ from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
 from Items import itemDict
-from Shared import Conversation, Dialog, House, Position, Shop, ShopItem, Level, generate_enemy
+from Shared import Conversation, Dialog, House, Position, Shop, ShopItem, Level, generate_enemy, build_dialogs
 
 from Callbacks import add_to_party as add_party_member, update_bank as modify_bank, can_give_item, give_item, get_cat_at_pos as get_cat_at_position, get_selected_cat
 
@@ -17,13 +17,15 @@ class ActOneLevels:
 		npc = get_npc()
 		cat = get_cat()
 		tac = get_tac()
+		boss = generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior')
+		bossId = boss.id
 		level = None
 		level = Level(
 			map = get_map(1),
 			enemies=[
 				generate_enemy(1, Position(4, 4), name='pig', ai='path', path=[Position(4, 7)]),
-				generate_enemy(1, Position(6, 4), name='pig', ai='path', path=[Position(4, 5)]),
-				generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior')
+				generate_enemy(2, Position(6, 4), name='pig', ai='path', path=[Position(4, 5)]),
+				boss,
 			],
 			number=1,
 			seizePosition=Position(1, 2),
@@ -31,54 +33,33 @@ class ActOneLevels:
 			houses = [
 				House(
 					position = Position(6, 11),
-					dialogs=[Dialog(
-						lines=["The weird","pigs are", "back..."],
-						left_cats=[get_cat_at_position(Position(6, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["cat", "save our","village,"],
-						left_cats=[get_cat_at_position(Position(6, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc',
-					), Dialog(
-						lines=["its chaos","the Mayors", "missing"],
-						left_cats=[get_cat_at_position(Position(6, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc',
-					), Dialog(
-						lines=["Take 50g", "if it", "helps,"],
-						left_cats=[get_cat_at_position(Position(6, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc',
-						lambda_after=lambda: modify_bank(50)
-					)],
-					postVisitDialog=[Dialog(
-						lines=["Thats all","we got.."],
-						left_cats=[get_cat_at_position(Position(6, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					)]
+					dialogs = lambda: build_dialogs(
+						[
+							["The weird|pigs are|back...|Cat|save our|village,|its chaos|the Mayors|missing|Take 50g|if it|helps,", npc.name],
+							["Received|50g", None, lambda: modify_bank(50)],
+						],
+						left=[npc],
+						right=[cat],
+					),
+					postVisitDialog= lambda: build_dialogs(
+						[
+							["Thats all|we got..", npc.name],
+						],
+						left=[npc],
+						right=[cat],
+					),
 				),
 				House(
 					position=Position(8, 11),
-					dialogs=[Dialog(
-						lines=["HEY TAC","wake up","and help"],
-						left_cats=[cat],
-						right_cats=[tac],
-						currentlyTalking='cat',
-						lambda_after=lambda: (tac.set_position(Position(8, 12)), add_party_member(tac))
-					), Dialog(
-						lines=["*stretch*","*meow*","... *meow*"],
-						left_cats=[cat],
-						right_cats=[tac],
-						currentlyTalking='tac'
-					), Dialog(
-						lines=["yeah"],
-						left_cats=[cat],
-						right_cats=[tac],
-						currentlyTalking='cat'
-					)]
+					dialogs= lambda: build_dialogs(
+						[
+							["HEY TAC|wake up|and help", cat.name],
+							["*stretch*|*meow*|... *meow*", tac.name],
+							["yeah", cat.name, lambda: (tac.set_position(Position(8, 12)), add_party_member(tac))],
+						],
+						left=[tac],
+						right=[cat],
+					),
 				),
 			],
 			shops = [
@@ -90,6 +71,18 @@ class ActOneLevels:
 						ShopItem(itemDict['Slngsht'], 10)
 					]
 				)
+			],
+			fightDialogs=[
+				['*', bossId, lambda: build_dialogs(
+					[
+						["Ahh peuny|Cats...||I will|destroy you|||I have|no time|for cats", boss.name],
+						["I really|dislike you", get_selected_cat().name],
+						["Your disdain|will be|short lived|I will|crush you|and this|village|if you|dare oppose|assimilation|we WILL|wipe every|rebel", boss.name],
+						[]
+					],
+					left=[boss],
+					right=[get_selected_cat()]
+				)]
 			]
 		)
 		return level
@@ -103,6 +96,7 @@ class ActOneLevels:
 		def visit_condition():
 			return level is not None and level.enemies == [] and can_give_item(Position(2,1))
 
+		guy = generate_enemy(3, Position(1, 12), ai='stand', name='guy', classType='warrior', )
 		level = Level(
 			map=get_map(2),
 			enemies=[
@@ -111,7 +105,7 @@ class ActOneLevels:
 				generate_enemy(2, Position(1, 10), name='mut', ai='path', path=[Position(3, 2)]),
 				generate_enemy(3, Position(3, 13), name='mut'),
 				generate_enemy(3, Position(4, 11), name='mut', weapon='Slngsht'),
-				generate_enemy(3, Position(1, 12), ai='stand', name='guy', classType='warrior', )
+				guy
 			],
 			number=2,
 			seizePosition=Position(1, 12),
@@ -119,80 +113,56 @@ class ActOneLevels:
 			houses=[
 				House(
 					position=Position(2, 1),
-					preVisitedDialogs=[Dialog(
-						lines=["Save us","and I'll", "owe you"],
-						left_cats=[get_cat_at_position(Position(2, 1))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					)],
-					dialogs=[Dialog(
-						lines=["Thank you" ,"take this."],
-						left_cats=[get_cat_at_position(Position(2, 1))],
-						right_cats=[npc],
-						currentlyTalking='npc',
-						lambda_after=lambda: give_item(Position(2,1), itemDict['MystPot'])
-					), Dialog(
-						lines=["Received","Mystic","Potion"]
-					)],
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["Save us|and I'll|owe you", npc.name],
+						],
+						left=[npc],
+						right=[Position(2, 1)]
+					),
+					dialogs=lambda: build_dialogs(
+						[
+							["Thank you|for saving|us|The farms..|were|forced to|give crops.|Some homes|completely|destroyed", npc.name],
+							["Take this|mystic potion", None, lambda: give_item(Position(2,1), itemDict['MystPot'])],
+							["Received|Mystic|Potion", None]
+						],
+						left=[npc],
+						right=[Position(2, 1)]
+					),
 					visitCondition=visit_condition
 				),
 				House(
 					position=Position(4, 1),
-					dialogs=[
-					Dialog(
-						lines=["Trees,","grass,","and houses"],
-						left_cats=[get_cat_at_position(Position(4, 1))],
-						right_cats=[npc],
-						currentlyTalking='npc'
+					dialogs= lambda: build_dialogs(
+						[
+							["Trees,|grass,|and houses|give|extra|avoid|Youll need|all the|advantage|you can|get", npc.name],
+						],
+						left=[npc],
+						right=[Position(4, 1)]
 					),
-					Dialog(
-						lines=["Give", "Extra", "Avoid"],
-						left_cats=[get_cat_at_position(Position(4, 1))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					)]
 				),
 				House(
 					position=Position(12, 13),
-					dialogs=[
-						Dialog(
-							lines=["I hear","some","items..."],
-							left_cats=[get_cat_at_position(Position(12, 13))],
-							right_cats=[npc],
-							currentlyTalking='npc'
-						),
-						Dialog(
-							lines=["promote", "trained", "pupils"],
-							left_cats=[get_cat_at_position(Position(12, 13))],
-							right_cats=[npc],
-							currentlyTalking='npc'
-						),
-						Dialog(
-							lines=["mystic quill", "promotes to", "sniper"],
-							left_cats=[get_cat_at_position(Position(12, 13))],
-							right_cats=[npc],
-							currentlyTalking='npc'
-						),
-						Dialog(
-							lines=["mystic potion", "promotes to", "wizard"],
-							left_cats=[get_cat_at_position(Position(12, 13))],
-							right_cats=[npc],
-							currentlyTalking='npc'
-						),
-						Dialog(
-							lines=["mystic meal", "promotes to", "warrior"],
-							left_cats=[get_cat_at_position(Position(12, 13))],
-							right_cats=[npc],
-							currentlyTalking='npc'
-						),
-						Dialog(
-							lines=["You have", "to be lv5", "though"],
-							left_cats=[get_cat_at_position(Position(12, 13))],
-							right_cats=[npc],
-							currentlyTalking='npc'
-						)
-					]
+					dialogs= lambda: build_dialogs(
+						[
+							["I hear|some|items...|promote|trained|pupils|mystic quill|promotes to|sniper|mystic potion|promotes to|wizard|mystic meal|promotes to|warrior|you have|to be lv5|though", npc.name],
+						],
+						left=[npc],
+						right=[Position(12, 13)]
+					)
 				)
+			],
+			fightDialogs=[
+				['*', 'guy', lambda: build_dialogs(
+					[
+						["Why bother|with runts|like you", 'guy'],
+						["RUNTS!?|Would you|say that|to someone|whos taken|out your|patrol?", get_selected_cat().name],
+						["They are|pawns to|me, and...|I know you|took doug|out|whats thats|supposed to|impress me?", 'guy'],
+						["Im not|doing this|for you", get_selected_cat().name],
+					],
+					left=[guy],
+					right=[get_selected_cat()]
+				)]
 			]
 		)
 		return level
@@ -211,6 +181,7 @@ class ActOneLevels:
 			diff =  abs(selCat.position.x - mew.position.x) + abs(selCat.position.y - mew.position.y)
 			return abs(diff) <= 1
 
+		bar = generate_enemy(4, Position(13, 1), ai='stand', name='bar', classType='warrior'),
 		level = Level(
 			map=get_map(3),
 			enemies=[
@@ -220,7 +191,7 @@ class ActOneLevels:
 				generate_enemy(3, Position(9, 4), name='mut'),
 				generate_enemy(3, Position(14, 3), name='mut'),
 				mew,
-				generate_enemy(4, Position(13, 1), ai='stand', name='guard', classType='warrior')
+				bar
 			],
 			number=3,
 			startingPositions=[Position(10, 13), Position(11, 14)],
@@ -228,85 +199,72 @@ class ActOneLevels:
 			houses=[
 				House(
 					position=Position(13, 8),
-					preVisitedDialogs=[Dialog(
-						lines=["There is","a legendary","cat..."],
-						right_cats=[get_cat_at_position(Position(13, 8))],
-						left_cats=[npc],
-						currentlyTalking='npc'
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["There is|a legendary|cat...", npc.name],
+							["that|possesses|the dna..", npc.name],
+							["of all|species.|Its name..", npc.name],
+							["is mew.|cat must|save him", npc.name],
+						],
+						left=[npc],
+						right=[Position(13, 8)]
 					),
-					Dialog(
-						lines=["that","possesses", "the dna.."],
-						right_cats=[get_cat_at_position(Position(13, 8))],
-						left_cats=[npc],
-						currentlyTalking='cat'
-					),
-					Dialog(
-						lines=["of all","species.", "Its name.." ],
-						right_cats=[get_cat_at_position(Position(13, 8))],
-						left_cats=[npc],
-						currentlyTalking='cat'
-					),
-					Dialog(
-						lines=["is mew.", "cat must", "save him"],
-						left_cats=[get_cat_at_position(Position(13, 8))],
-						right_cats=[npc],
-						currentlyTalking='cat'
-					)],
 					visitCondition=lambda: get_cat_at_position(Position(13, 8)) is not None and get_cat_at_position(Position(13, 8)).name == 'mew' and can_give_item(Position(13,8)),
-					dialogs=[
-						Dialog(
-							lines=["They","believed","me huh..."],
-							right_cats=[get_cat_at_position(Position(13, 8))],
-							left_cats=[npc],
-							currentlyTalking='npc',
-						),
-						Dialog(
-							lines=["Take after","my steps","will ya"],
-							right_cats=[get_cat_at_position(Position(13, 8))],
-							left_cats=[npc],
-							currentlyTalking='npc',
-							lambda_after=lambda: (give_item(Position(13,8), itemDict['MstMeal']))
-						),
-						Dialog(
-							lines=["Recieved","the mystic","meal"],
-						)
-					],
-					postVisitDialog=[Dialog(
-						lines=["Don't die", "live"],
-						right_cats=[get_cat_at_position(Position(13, 8))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					)]
+					dialogs=lambda: build_dialogs(
+						[
+							["They|believed|me huh...|take after|my steps|will ya", npc.name, lambda: give_item(Position(13,8), itemDict['MstMeal'])],
+							["Recieved|the mystic|meal", None]
+						],
+						left=[npc],
+						right=[Position(13, 8)]
+					),
+					postVisitDialog=lambda: build_dialogs(
+						[
+							["Don't die", "live", npc.name]
+						],
+						left=[npc],
+						right=[Position(13, 8)]
+					)
 				),
 			],
 			conversations=[
 				Conversation(
-					dialogs=[
-						Dialog(
-							lines=["Mew", 'why join', 'them'],
-							left_cats=[mew],
-							right_cats=[get_cat_at_position(Position(10, 13))],
-							currentlyTalking='cat'
-						),
-						Dialog(
-							lines=["meow :("],
-							left_cats=[get_cat_at_position(Position(10, 13))],
-							right_cats=[mew],
-							currentlyTalking='mew',
-							lambda_after=lambda: (
-								level.enemies.remove(mew),
-								setattr(mew, 'enemy', False),
-								add_party_member(mew)
-							)
-						),
-						Dialog(
-							lines=["Mew has", "joined", "your party"],
-						)
-					],
+					dialogs=lambda: build_dialogs(
+						[
+							["Mew...|why join|them", mew.name],
+							["meow :(", mew.name, lambda: (level.enemies.remove(mew), setattr(mew, 'enemy', False), add_party_member(mew))],
+							["Mew has|joined|your party", None]
+						],
+						left=[mew],
+						right=[Position(13, 1)]
+					),
 					nameOne='cat',
 					nameTwo='mew',
 					condition=conversation_condition
 				)
+			],
+			fightDialogs=[
+				['cat', 'bar', lambda: build_dialogs(
+					[["Cat huh|news travels|fast||I was|eager for|out meeting|please don't|disappoint", 'bar']],
+					left=[bar],
+					right=[get_selected_cat()]
+				)],
+				['tac', 'bar', lambda: build_dialogs(
+					[
+						["tac huh|I have|heard so|much from|the prisoners|you've been|sold out|to many|times to|count", 'bar'],
+						["...|*sad meow*|..*sigh*|(See this|is exactly|why I|didnt want|to come here", 'tac']
+					],
+					left=[get_selected_cat()],
+					right=[bar]
+				)],
+				['mew', 'bar', lambda: build_dialogs(
+					[
+						["I knew|you would|betray us", 'bar'],
+						["Then why|even bother|keeping me|I guess|you must|need us", 'mew']
+					],
+					left=[get_selected_cat()],
+					right=[bar]
+				)]
 			]
 		)
 		return level
@@ -330,6 +288,7 @@ class ActOneLevels:
 			return level is not None and level.enemies == [] and can_give_item(Position(7,13))
 				
 
+		himb = generate_enemy(5, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand')
 		level = Level(
 			map=get_map(4),
 			enemies=[
@@ -338,7 +297,7 @@ class ActOneLevels:
 				generate_enemy(3, Position(2, 11), name='pig'),
 				generate_enemy(4, Position(3, 10), name='pig'),
 				bao,
-				generate_enemy(5, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand')
+				himb,
 			],
 			number=4,
 			seizePosition=Position(2, 13),
@@ -349,75 +308,57 @@ class ActOneLevels:
 					preVisitedDialogs=[Dialog(
 						lines=["muggle...", "no words", "for you"],
 						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(0, 0))],
+						right_cats=[Position(0, 0)],
 						currentlyTalking='npc'
 					)],
 					visitCondition=lambda: get_cat_at_position(Position(0, 0)) is not None and get_cat_at_position(Position(0, 0)).classType == 'wizard' and can_give_item(Position(0,0)),
-					dialogs=[Dialog(
-						lines=["Oh,","a wizard!"],
-						right_cats=[get_cat_at_position(Position(0, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc',
-						lambda_after=lambda: give_item(Position(0,0), itemDict['LghtngTm'])
-					), Dialog(
-						lines=["Received","Lightning","Tome"]
-					)],
-					postVisitDialog=[Dialog(
-						lines=["Use it","wisely."],
-						right_cats=[get_cat_at_position(Position(0, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					)]
+					dialogs=lambda: build_dialogs(
+						[
+							["OH|a|Wizard!|Here|I have|something", npc.name],
+							["Take this|Lightning|Tome|This world|needs more|magic", npc.name, lambda: give_item(Position(0,0), itemDict['LghtngTm'])],
+							["Received|Lightning|Tome", None]
+						],
+						left=[npc],
+						right=[Position(0, 0)]
+					),
+					postVisitDialog=lambda: build_dialogs(
+						[
+							["Use it","wisely.", npc.name]
+						],
+						left=[npc],
+						right=[Position(0, 0)]
+					)
 				),
 				House(
 					position=Position(1, 0),
-					dialogs=[Dialog(
-						lines=["If you\'re","speed is","great"],
-						right_cats=[get_cat_at_position(Position(1, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["you can","double","attack"],
-						right_cats=[get_cat_at_position(Position(1, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					)],
+					dialogs=lambda: build_dialogs(
+						[
+							["If you\'re|speed is|great|you can|double|attack", npc.name],
+						],
+						left=[npc],
+						right=[Position(1, 0)]
+					),
 				),
 				House(
 					position=Position(7, 13),
-					preVisitedDialogs=[Dialog(
-						lines=["I was working","and toxic", "pigs showed"],
-						right_cats=[get_cat_at_position(Position(7, 13))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["I thought", "this was a", "conspiracy"],
-						right_cats=[get_cat_at_position(Position(7, 13))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["I would", "like them", "gone"],
-						right_cats=[get_cat_at_position(Position(7, 13))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					)],
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["I was working|and toxic|pigs showed", npc.name],
+							["I thought|this was a|conspiracy", npc.name],
+							["I would|like them|gone", npc.name],
+						],
+						left=[npc],
+						right=[Position(7, 13)]
+					),
 					visitCondition=visit_condition,
-					dialogs=[
-						Dialog(
-							lines=["Thank you","ridding the","pigs"],
-							right_cats=[get_cat_at_position(Position(7, 13))],
-							left_cats=[npc],
-							currentlyTalking='npc'
-						), Dialog(
-							lines=["Take 50g","seems right"],
-							right_cats=[get_cat_at_position(Position(7, 13))],
-							left_cats=[npc],
-							currentlyTalking='npc',
-							lambda_after=lambda: modify_bank(50)
-						), Dialog(
-							lines=["Received","50g"]
-						)
-					]
+					dialogs=lambda: build_dialogs(
+						[
+							["Thank you|ridding the|pigs|Take 50g|seems right", npc.name, lambda: modify_bank(50)],
+							["Received|50g", None]
+						],
+						left=[npc],
+						right=[Position(7, 13)]
+					),
 				)
 			],
 			shops=[
@@ -433,38 +374,30 @@ class ActOneLevels:
 			],
 			conversations=[
 				Conversation(
-					dialogs=[
-						Dialog(
-							lines=["Why are", 'you a cat', 'bao'],
-							left_cats=[bao],
-							right_cats=[cat],
-							currentlyTalking='cat'
-						),
-						Dialog(
-							lines=["Dunno, I'm", 'just a cat'],
-							left_cats=[bao],
-							right_cats=[cat],
-							currentlyTalking='bao',
-							lambda_after=lambda: (
-								level.enemies.remove(bao),
-								setattr(bao, 'enemy', False),
-								add_party_member(bao)
-							)
-						),
-						Dialog(
-							lines=["Will you", "join us", "bao"],
-							left_cats=[bao],
-							right_cats=[cat],
-							currentlyTalking='cat'
-						),
-						Dialog(
-							lines=["Bao has", "joined", "your party"],
-						)
-					],
+					dialogs=lambda: build_dialogs(
+						[
+							["Why are|you a cat|bao", cat.name],
+							["beyond me,|I'm just|a cat", bao.name, lambda: (level.enemies.remove(bao), setattr(bao, 'enemy', False), add_party_member(bao))],
+							["Will you|join us|bao", cat.name],
+							["Bao has|joined|your party", None]
+						],
+						left=[cat],
+						right=[bao]
+					),
 					nameOne='cat',
 					nameTwo='bao',
 					condition=conversation_condition
 				)
+			],
+			fightDialogs=[
+				['*', 'himb', lambda: build_dialogs(
+					[
+						["Im feeling|real filthy|today|absolutly|gross actually|we can|fight|but its|gonna stain", 'himb'],
+						["Did you|prepare that?" if get_selected_cat().name != 'tac' else "...|(disbeleif)", get_selected_cat().name],
+					],
+					left=[himb],
+					right=[get_selected_cat()]
+				)]
 			]
 		)
 		return level
@@ -491,7 +424,7 @@ class ActOneLevels:
 				if item.name == 'Tuna':
 					selCat.items.remove(item)
 					break
-
+		wlbr = generate_enemy(6, Position(0, 15), name='wlbr', weapon='LghtngTm', classType='wizard', ai='stand')
 		level = Level(
 			map=get_map(5),
 			enemies=[
@@ -501,7 +434,7 @@ class ActOneLevels:
 				generate_enemy(4, Position(4, 6), name='mut', ai='path', path=[Position(8, 1)]),
 				generate_enemy(3, Position(4, 15), name='mut', ai='path', path=[Position(11, 15), Position(14, 2)]),
 				generate_enemy(5, Position(3, 15), name='mut', weapon='Bow', classType='sniper'),
-				generate_enemy(6, Position(0, 15), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				wlbr
 			],
 			number=5,
 			seizePosition=Position(0, 15),
@@ -510,88 +443,59 @@ class ActOneLevels:
 				House(
 					multipleVisits=True,
 					position=Position(8, 0),
-					preVisitedDialogs=[Dialog(
-						lines=["I'll trade","any tuna","for 25g"],
-						right_cats=[get_cat_at_position(Position(8, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["I don't","smell any","on you.."],
-						right_cats=[get_cat_at_position(Position(8, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					)],
-					dialogs=[Dialog(
-						lines=["so....","trade tuna","for 25g,"],
-						right_cats=[get_cat_at_position(Position(8, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Deal?", 'A: yes', 'B: no'],
-						right_cats=[get_cat_at_position(Position(8, 0))],
-						left_cats=[npc],
-						currentlyTalking='npc',
-						lambda_after=lambda: (take_tuna(Position(8, 0)), modify_bank(25)),
-						decision=True,
-					)],
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["I'll trade|any tuna|for 25g", npc.name],
+							["I don't|smell any|on you..", npc.name]
+						],
+						left=[npc],
+						right=[Position(8, 0)]
+					),
+					dialogs=lambda: build_dialogs(
+						[
+							["so....|trade tuna|for 25g,", npc.name],
+							["Deal?|A: yes|B: no", npc.name, lambda: (take_tuna(Position(8, 0)), modify_bank(25)) if houseCondition(Position(8, 0)) else None, True],
+						],
+						left=[npc],
+						right=[Position(8, 0)]
+					),
 					visitCondition=houseCondition(Position(8, 0))
 				),
 				House(
 					position=Position(14, 9),
-					dialogs=[Dialog(
-						lines=["Let me", "give some", "advice"],
-						right_cats=[get_cat_at_position(Position(14, 9))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Snipers", "overpower", "Warriors"],
-						right_cats=[get_cat_at_position(Position(14, 9))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Wizards", "overpower", "Snipers"],
-						right_cats=[get_cat_at_position(Position(14, 9))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Warriors", "overpower", "Wizards"],
-						right_cats=[get_cat_at_position(Position(14, 9))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["So,","choose wisely"],
-						right_cats=[get_cat_at_position(Position(14, 9))],
-						left_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Take 10g", "all I", "got"],
-						right_cats=[get_cat_at_position(Position(14, 9))],
-						left_cats=[npc],
-						currentlyTalking='npc',
-						lambda_after=lambda: modify_bank(10)
-					), Dialog(
-						lines=["Received", "10g"]
-					)],
+					dialogs=lambda: build_dialogs(
+						[
+							["Let me|give some|advice", npc.name],
+							["Snipers|overpower|Warriors", npc.name],
+							["Wizards|overpower|Snipers", npc.name],
+							["Warriors|overpower|Wizards", npc.name],
+							["So,","choose wisely", npc.name],
+							["Take 10g","all I","got", npc.name, lambda: modify_bank(10)],
+							["Received","10g", None]
+						],
+						left=npc,
+						right=Position(14, 9)
+					),
 					postVisitDialog=[
-						Dialog(
-							lines=["Good luck", "and", "remember"],
-							left_cats=[npc],
-							right_cats=[get_cat_at_position(Position(14, 9))],
-							currentlyTalking='npc'
+						lambda: build_dialogs(
+							[
+								["Good luck", "and", "remember", npc.name]
+							],
+							left=[npc],
+							right=[Position(14, 9)]
 						)
 					]
 				),
 				House(
 					position=Position(15, 11),
-					dialogs=[Dialog(
-						lines=["Take this","ring"],
-						left_cats=[get_cat_at_position(Position(15, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Received","Ring"],
-						lambda_after=lambda: give_item(Position(15,11), itemDict['PowerRing'])
-					)]
+					dialogs=lambda: build_dialogs(
+						[
+							["Take this|ring", npc.name, lambda: give_item(Position(15,11), itemDict['PowerRing'])],
+							["Received|Ring", None]
+						],
+						left=[npc],
+						right=[Position(15, 11)]
+					),
 				),
 				House(
 					position=Position(1, 6),
@@ -612,8 +516,15 @@ class ActOneLevels:
 						ShopItem(itemDict['LghtngTm'], 30)
 					]
 				)
-			]
-
+			],
+			fightDialogs=["*", wlbr, lambda: build_dialogs(
+				[
+					["This is|where the|charade|ends your|pretend hero|dies I|have one|job. Keeping|cats like|you out|of the|south island", 'wlbr'],
+					["Look at|me||I was|born to|be a|captain" if get_selected_cat().name != 'tac' else "*meow*|(cats like|me? whats|that even|mean?)", get_selected_cat().name],
+				],
+				left=[wlbr],
+				right=[get_selected_cat()]
+			)]
 		)
 		return level
 

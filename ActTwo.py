@@ -1,11 +1,10 @@
 from sys import path as syspath
 
-from Shared import Position
 syspath.insert(0, '/Games/CatsEmblem')
 
 from Items import itemDict
 
-from Callbacks import add_to_party as add_party_member, can_give_item, give_item, get_cat_at_pos as get_cat_at_position, get_selected_cat
+from Callbacks import add_to_party as add_party_member, can_give_item, give_item, get_cat_at_pos as get_cat_at_position, get_selected_cat, build_dialogs
 
 def set_game_state_callbacks(*_args):
 	pass
@@ -15,7 +14,7 @@ class ActTwoLevels:
 
 	def _build_level6():
 		from MapData import get_map
-		from Shared import get_bub, Blockade, Button, Position, Conversation, Dialog, generate_enemy, Shop, ShopItem, Level
+		from Shared import get_bub, Blockade, Button, Position, Conversation, generate_enemy, Shop, ShopItem, Level
 
 		bub = get_bub()
 
@@ -77,28 +76,19 @@ class ActTwoLevels:
 			blockades=[Barrier1, Barrier2],
 			conversations=[
 				Conversation(
-					dialogs=[
-						Dialog(
-							lines=["Hello","bao, I","stinky..."],
-							left_cats=[bub],
-							right_cats=[get_selected_cat()],
-							currentlyTalking='bao'
-						),
-						Dialog(
-							lines=["meow :("],
-							left_cats=[get_selected_cat()],
-							right_cats=[bub],
-							currentlyTalking='bao',
-							lambda_after=lambda: (
+					dialogs=lambda: build_dialogs(
+						[
+							["Hello|bao, I|stinky...", bub.name],
+							["meow :(", get_selected_cat().name, lambda: (
 								level.enemies.remove(bub),
 								setattr(bub, 'enemy', False),
 								add_party_member(bub)
-							)
-						),
-						Dialog(
-							lines=["Bub has", "joined", "your party"],
-						)
-					],
+							)],
+							["Bub has|joined|your party", None]
+						],
+						left=[bub],
+						right=[get_selected_cat()],
+					),
 					nameOne='bao',
 					nameTwo='bub',
 					condition=conversation_condition
@@ -109,7 +99,7 @@ class ActTwoLevels:
 
 	def _build_level7():
 		from MapData import get_map
-		from Shared import get_npc, Position, generate_enemy, Shop, ShopItem, Level, House, Dialog
+		from Shared import get_npc, Position, generate_enemy, Shop, ShopItem, Level, House
 		npc = get_npc()
 		level = Level(
 			map=get_map(7),
@@ -149,41 +139,32 @@ class ActTwoLevels:
 			houses=[
 				House(
 					position=Position(1, 12),
-					dialogs=[Dialog(
-						lines=["You have","come far","take this"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(1, 12))],
-						currentlyTalking='npc',
-						lambda_after=lambda: give_item(Position(1, 12), itemDict['MagPowder'])
-					), Dialog(
-						lines=["Received","Magic", "Powder"],
-					), Dialog(
-						lines=["Should give","a bit","extra exp"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(1, 12))],
-						currentlyTalking='npc',
-					)]
+					dialogs=lambda: build_dialogs(
+						[
+							["You have|come far|take this", npc.name],
+							["Received|Magic|Powder", None, lambda: give_item(Position(1, 12), itemDict['MagPowder'])],
+							["Should give|a bit|extra exp", npc.name]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(1, 12))],
+					)
 				), House(
 					position=Position(5, 7),
-					dialogs=[Dialog(
-						lines=["I dont","get many","visitors"],
-						left_cats=[get_cat_at_position(Position(5, 7))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["I saved","this for","you"],
-						left_cats=[get_cat_at_position(Position(5, 7))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Received","a Rabbit's Foot"],
-						lambda_after=lambda: give_item(Position(5,7), itemDict['RabFoot'])
-					)],
-					postVisitDialog=Dialog(
-						lines=["I hope","you use it","well"],
-						left_cats=[get_cat_at_position(Position(5, 7))],
-						right_cats=[npc],
-						currentlyTalking='npc'	
+					dialogs=lambda: build_dialogs(
+						[
+							["I dont","get many","visitors", npc.name],
+							["I saved","this for","you", npc.name],
+							["Received","a Rabbit's Foot", None, lambda: give_item(Position(5,7), itemDict['RabFoot'])]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(5, 7))],
+					),
+					postVisitDialog=lambda: build_dialogs(
+						[
+							["I hope","you use it","well", npc.name]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(5, 7))],
 					)
 				)
 			]
@@ -191,7 +172,7 @@ class ActTwoLevels:
 		return level
 
 	def _build_level8():
-		from Shared import get_npc, generate_enemy, Position, House, Dialog, Level
+		from Shared import get_npc, generate_enemy, Position, House, Level
 		from MapData import get_map
 
 		def house_condition(position: Position):
@@ -227,44 +208,42 @@ class ActTwoLevels:
 			houses=[
 				House(
 					position=Position(16, 10),
-					preVisitedDialogs=[Dialog(
-						lines=["I need","strong","wizard"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(16, 10))],
-						currentlyTalking='npc',
-					)],
-					dialogs=[Dialog(
-						lines=["I see","strong","wizard"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(16, 10))],
-						currentlyTalking='npc',
-					), Dialog(
-						lines=["I have","a gift","for you"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(16, 10))],
-						currentlyTalking='npc',
-						lambda_after=lambda: give_item(Position(16, 10), itemDict['NecTome'])
-					), Dialog(
-						lines=["Received","a Necromancy","Tome"]
-					)],
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["I need|strong|wizard", npc.name],
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(16, 10))],
+					),
+					dialogs=lambda: build_dialogs(
+						[
+							["I see|strong|wizard", npc.name],
+							["I have|a gift|for you", npc.name, lambda: give_item(Position(16, 10), itemDict['NecTome'])],
+							["Received|a Necromancy|Tome", None]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(16, 10))],
+					),
 					visitCondition=lambda: house_condition(Position(16, 10))
 				),
 				House(
 					position=Position(17, 10),
-					preVisitedDialogs=[Dialog(
-						lines=["I need","strong","warrior"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(17, 10))],
-					)],
-					dialogs=[Dialog(
-						lines=["Hmm","you will","need this"],
-						left_cats=[npc],
-						right_cats=[get_cat_at_position(Position(17, 10))],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Received","a Axe"],
-						lambda_after=lambda: give_item(Position(17, 10), itemDict['Axe'])
-					)],
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["I need|strong|warrior", npc.name],
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(17, 10))],
+					),
+					dialogs=lambda: build_dialogs(
+						[
+							["Strong|warrior|I see", npc.name],
+							["I have|a gift|for you", npc.name, lambda: give_item(Position(17, 10), itemDict['Axe'])],
+							["Received|an Axe", None]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(17, 10))],
+					),
 					visitCondition=lambda: house_condition2(Position(17, 10))
 				)
 			]
@@ -272,7 +251,7 @@ class ActTwoLevels:
 		return level
 
 	def _build_level9():
-		from Shared import get_npc, generate_enemy, Position, Blockade, House, Dialog, Shop, ShopItem, Level
+		from Shared import get_npc, generate_enemy, Position, Blockade, House, Shop, ShopItem, Level
 		from MapData import get_map
 		npc = get_npc()
 
@@ -311,65 +290,46 @@ class ActTwoLevels:
 			houses=[
 				House(
 					position=Position(1, 1),
-					dialogs=[Dialog(
-						lines=["Take this","for saving","town"],
-						left_cats=[get_cat_at_position(Position(1, 1))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Received","a Rabbit's", "Foot"],
-						lambda_after=lambda: give_item(Position(1, 1), itemDict['RabFoot'])
-					)],
+					dialogs=lambda: build_dialogs(
+						[
+							["Take this|for saving|town", npc.name, lambda: give_item(Position(1, 1), itemDict['RabFoot'])],
+							["Received|a Rabbit's|Foot", None]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(1, 1))],
+					),
 					visitCondition=lambda: can_give_item(Position(1, 1))
 				), House(
 					position=Position(2, 1),
-					dialogs=[Dialog(
-						lines=["You will","need this.", "Just know,"],
-						left_cats=[get_cat_at_position(Position(2, 1))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["power,","is it","given?"],
-						right_cats=[get_cat_at_position(Position(2, 1))],
-						left_cats=[npc],
-						currentlyTalking='npc',
-					), Dialog(
-						lines=["Today it","is"],
-						right_cats=[get_cat_at_position(Position(2, 1))],
-						left_cats=[npc],
-						currentlyTalking='npc',
-						lambda_after=lambda: give_item(Position(2, 1), itemDict['VoidSwd'])
-					), Dialog(
-						lines=["Received","Void Sword"],
-					)],
+					dialogs=lambda: build_dialogs(
+						[
+							["You will|need this.|Just know,|power,|is it|given?|Today it|is", npc.name],
+							["Received|Void Sword", None, lambda: give_item(Position(2, 1), itemDict['VoidSwd'])]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(2, 1))],
+					),
 					visitCondition= lambda: can_give_item(Position(2, 1)),
 				), House(
 					position=Position(0, 10),
-					preVisitedDialogs=[Dialog(
-						lines=["Big issue", "town is", "locked"],
-						left_cats=[get_cat_at_position(Position(0, 10))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["I can","open it","for you"],
-						left_cats=[get_cat_at_position(Position(0, 10))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["But I","need help"],
-						left_cats=[get_cat_at_position(Position(0, 10))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					)],
-					dialogs=[Dialog(
-						lines=["I open","the gate","to town"],
-						left_cats=[get_cat_at_position(Position(0, 11))],
-						right_cats=[npc],
-						currentlyTalking='npc'
-					), Dialog(
-						lines=["Opened","gate"],
-						lambda_after=lambda: barrier1.clear()
-					)],
+					preVisitedDialogs=lambda: build_dialogs(
+						[
+							["Big issue|town is|locked", npc.name],
+							["I can|open it|for you", npc.name],
+							["But I|need help", npc.name],
+							["There are|pursuers|coming here", npc.name],
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(0, 10))],
+					),
+					dialogs=lambda: build_dialogs(
+						[
+							["I open|the gate|to town", npc.name, lambda: barrier1.clear()],
+							["Opened|gate", None]
+						],
+						left=[npc],
+						right=[get_cat_at_position(Position(0, 10))],
+					),
 					visitCondition=house_condition
 				)
 			],
@@ -431,7 +391,7 @@ class ActTwoLevels:
 				generate_enemy(11, Position(12, 4), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
 			],
 			number=10,
-			seizePosition=Position(10, 0),
+			seizePosition=Position(12, 4),
 			startingPositions=[Position(10, 18), Position(11, 18), Position(12, 18), Position(13, 18), Position(14, 18)],
 			buttons=[button1, button2, button3, button4],
 			blockades=[barrier1, barrier2],

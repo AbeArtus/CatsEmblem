@@ -1,9 +1,9 @@
-import gc
 from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
 print("GameState.py loaded")
-from Shared import fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite
+from Shared import fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite, checkClearMem
+import Menus
 
 _save_data = None
 
@@ -39,7 +39,6 @@ class GameState:
         self.lastPos = Position()
 
     def save_game(self):
-        """Save the current game state to persistent storage."""
         saveData = get_save_data()
 
         saveData.delItem("gameState-bank")
@@ -120,7 +119,7 @@ class GameState:
         
         self.party = party
         
-        gc.collect()
+        checkClearMem("Loading Game State")
         level_number = saveData.getItem("gameState-level-number")
         self.load_level(fetch_level(level_number))
 
@@ -143,7 +142,7 @@ class GameState:
         self.combat_log = []
         self.dialog = []
         self.menu = None
-        gc.collect()
+        checkClearMem("Loading Level")
         if level is None:
             return
         for i, p in enumerate(self.party):
@@ -151,9 +150,15 @@ class GameState:
             p.restore_state()
         self.level = level
         self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
-        gc.collect()
+        checkClearMem("Level Loaded")
+        from Dialogs import LevelDialogs
+        dialogs = LevelDialogs().get_dialogs_for_level(level.number, self.party)
+        for dialog in dialogs.get("intro", []):
+            self.add_dialog(dialog)
 
     def set_state(self, new_state: str):
+        if new_state == 'title':
+            self.level = None
         if self.state == 'enemy-turn' and new_state == 'map':
             for unit in self.level.enemies:
                 unit.set_exhausted(False)
@@ -167,10 +172,10 @@ class GameState:
         self.state = new_state
 
     def start_game(self):
-        gc.collect()
+        checkClearMem("Starting New Game")
         self.party = [get_cat()]
         self.load_level(fetch_level(1))
-        gc.collect()
+        checkClearMem("New Game Started")
 
     def load_next_level(self):
         n = self.level.number
@@ -195,6 +200,7 @@ class GameState:
 
     def pop_dialog(self):
         if self.dialog:
+            self.dialog[0].printIndex = 0
             self.dialog.pop(0)
 
     def select_cat(self, cat: Cat):
@@ -329,24 +335,36 @@ class GameState:
         self.state = 'map'
 
     def open_shop_menu(self, shop):
-        import Menus
-        Menus.install(GameState)
         return self.open_shop_menu(shop)
 
     def open_item_menu(self, option_index=0):
-        import Menus
-        Menus.install(GameState)
+        checkClearMem("Opening Item Menu")
         return self.open_item_menu(option_index)
 
     def open_unit_menu(self, option_index=0):
-        import Menus
-        Menus.install(GameState)
         return self.open_unit_menu(option_index)
 
     def open_stats(self, unit=None):
-        import Menus
-        Menus.install(GameState)
+        checkClearMem("Opening Stats")
         return self.open_stats(unit)
 
     def is_occupied(self, position: Position):
         return any(cat.position == position for cat in self.party + self.level.enemies)
+
+    def get_cat_by_position(self, position: Position):
+        for cat in self.party + self.level.enemies:
+            if cat.position == position:
+                return cat
+        return None
+
+    def check_fight_dialogs(self, selected_cat: Cat, selected_enemy: Cat):
+        for fightlog in self.level.fightDialogs:
+            if (fightlog[0] == selected_cat.id or fightlog[0] == '*') and (fightlog[1] == selected_enemy.id or fightlog[1] == '*'):
+                dialogs = fightlog[2]()
+                for dialog in dialogs:
+                    self.add_dialog(dialog)
+                # remove the fightlog so it doesn't trigger again
+                self.level.fightDialogs.remove(fightlog)
+                break
+
+Menus.install(GameState)

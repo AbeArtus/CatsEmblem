@@ -57,8 +57,6 @@ class Item:
             durability=self.durability,
         )
 
-_item_cache = {}
-
 def _build_item(item_name: str):
     if item_name == "Stick":
         return Item(name="Stick", item_type="weapon", attack=2, accuracy=80, range=1, crit=0, allowedClasses=['pupil', 'warrior', 'sniper', 'wizard'], weaponType='sword', durability=20)
@@ -129,9 +127,7 @@ class LazyItemDict:
     def __getitem__(self, key):
         if key not in self:
             raise KeyError(key)
-        if key not in _item_cache:
-            _item_cache[key] = _build_item(key)
-        return _item_cache[key].clone()  # Return a clone to avoid shared state issues
+        return _build_item(key).clone()  # Return a clone to avoid shared state issues
 
     def get(self, key, default=None):
         if key in self:

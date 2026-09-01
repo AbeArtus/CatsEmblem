@@ -1,4 +1,4 @@
-from Shared import Dialog, Menu, Option, Position
+from Shared import Dialog, Menu, Option, Position, checkClearMem
 
 def install(cls):
     cls.open_shop_menu = open_shop_menu
@@ -7,6 +7,7 @@ def install(cls):
     cls.open_stats = open_stats
 
 def open_shop_menu(self, shop):
+    checkClearMem("Opening Shop Menu")
     shop_menu_options: list[Option] = []
 
     def exit_menu():
@@ -25,6 +26,7 @@ def open_shop_menu(self, shop):
                         left_cats=[selCat],
                         currentlyTalking=selCat.name,
                         lines=["Inventory", "Full!"],
+                        instaText=True
                     ))
                     return
                 if self.bank >= item.price:
@@ -35,13 +37,16 @@ def open_shop_menu(self, shop):
                         currentlyTalking=selCat.name,
                         lines=[f"Purchased",
                                f"{item.item.name}!"],
+                        instaText=True
                     ))
                 else:
                     self.add_dialog(Dialog(
                         left_cats=[selCat],
                         currentlyTalking=selCat.name,
+                        overlay=True,
                         lines=["Not enough",
                                "gold!"],
+                        instaText=True,
                     ))
             return purchase
 
@@ -57,6 +62,7 @@ def open_shop_menu(self, shop):
     ))
 
 def open_item_menu(self, option_index=0):
+    checkClearMem("Opening Item Menu")
     selectedCat = self.get_selected_cat()
     if selectedCat:
         item_menu_options: list[Option] = []
@@ -111,6 +117,7 @@ def open_item_menu(self, option_index=0):
                                     left_cats=[selectedCat],
                                     currentlyTalking=selectedCat.name,
                                     lines=["*promoted to", f"{promotion_class}*"],
+                                    instaText=True
                                 ))
                                 self.state = 'map'
                                 selectedCat.set_exhausted(True)
@@ -262,6 +269,7 @@ def open_item_menu(self, option_index=0):
         ))
 
 def open_unit_menu(self, option_index=0):
+    checkClearMem("Opening Unit Menu")
     selectedCat = self.get_selected_cat()
 
     def exit_menu():
@@ -298,6 +306,7 @@ def open_unit_menu(self, option_index=0):
                 dx = abs(enemy.position.x - selectedCat.position.x)
                 dy = abs(enemy.position.y - selectedCat.position.y)
                 if (dx + dy) in weapon.get_range():
+                    self.check_fight_dialogs(selectedCat, enemy)
                     return True
             return False
 
@@ -321,7 +330,6 @@ def open_unit_menu(self, option_index=0):
             leave_action=exit_menu
         ))
 
-
     def seize_action():
         if selectedCat:
             selectedCat.set_exhausted(True)
@@ -336,6 +344,7 @@ def open_unit_menu(self, option_index=0):
         houseDialogs = house.get_dialogs()
         for dialog in houseDialogs:
             self.add_dialog(dialog)
+        house.visit()
         selCat.set_exhausted(True)
         selCat.set_moved(True)
         exit_menu()
@@ -387,8 +396,9 @@ def open_unit_menu(self, option_index=0):
             unitsInRange = self.units_in_range(self.level.selectorPosition, 1)
             firstFound = [conversationNames[0] == unit.name for unit in unitsInRange]
             secondFound = [conversationNames[1] == unit.name for unit in unitsInRange]
+            conversationDialogs = conversation.get_dialogs()
             if firstFound and secondFound:
-                for dialog in conversation.dialogs:
+                for dialog in conversationDialogs:
                     self.add_dialog(dialog)
                 # remove conversation so it can't be triggered again
                 self.level.conversations.remove(conversation)
@@ -418,6 +428,7 @@ def open_unit_menu(self, option_index=0):
                     left_cats=[cat],
                     currentlyTalking=cat.name,
                     lines=["*pressed the", "button*"],
+                    instaText=True
                 ))
                 selectedCat.set_exhausted(True)
                 exit_menu()
@@ -478,6 +489,7 @@ def open_unit_menu(self, option_index=0):
     ))
 
 def open_stats(self, unit=None):
+    checkClearMem("Opening Stats")
     if not unit:
         self.state = 'map'
         return
@@ -542,4 +554,3 @@ def open_stats(self, unit=None):
     )
     
     self.enter_menu(stats_menu)
-

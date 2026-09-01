@@ -1,4 +1,3 @@
-import gc
 from time import sleep
 
 # Cats F# maj
@@ -14,22 +13,17 @@ def render_loading_screen(message: str):
 	thumby.display.drawText(message, 6, 16, thumby.display.WHITE)
 	thumby.display.show()
 
-thumby.display.setFPS(10)
+thumby.display.setFPS(13)
 render_loading_screen("Loading")
 
-def checkClearMem(message: str):
-	gc.collect()
-	print(message, gc.mem_free(), "bytes free")
-
+from Shared import Cat, Position, build_dialogs, cat_frame_sprite, cat_head, Item, Dialog, Menu, AttackLog, Option, button_sprite, classAdvantages, enemy_frame_sprite, checkClearMem
+checkClearMem("Shared Imported")
+render_loading_screen("Loading.")
 from MapData import get_tile_data, canWalkOn, tileEvation, TILE_BLOCKADE
-
 checkClearMem("MapData imported")
 from Items import weaponAdvantages
-render_loading_screen("Loading.")
 checkClearMem("Items imported")
-from Shared import Cat, Position, cat_head, cat_sprite, Item, Dialog, Menu, AttackLog, Option, button_sprite, classAdvantages
-checkClearMem("Shared Imported")
-
+render_loading_screen("Loading..")
 from GameState import GameState
 checkClearMem("GameState imported")
 render_loading_screen("Loading...")
@@ -42,9 +36,6 @@ import Callbacks
 gameState = GameState()
 Callbacks.set_game_state(gameState)
 checkClearMem("Callbacks")
-import Menus
-Menus.install(GameState)
-checkClearMem("Menus")
 
 _selector_sprite = None
 
@@ -83,9 +74,8 @@ activeEnemy = None
 readyForBattle = False
 option = 0
 current_hp_display = -1
-_tile_sprite_cache = {}
-_dialog_portrait_sprite = None
 currentFont = "5x7"
+delay = 0
 
 def get_render_tile_sprite(tile_type: int, map_x: int, map_y: int, screen_x: int, screen_y: int):
 	if tile_type == 4 or tile_type == 35:
@@ -106,25 +96,16 @@ def get_render_tile_sprite(tile_type: int, map_x: int, map_y: int, screen_x: int
 	else:
 		key = (tile_type, xFlip, yFlip)
 
-	sprite = _tile_sprite_cache.get(key)
-	if sprite is None:
-		if tile_type == 0:
-			sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
-		elif tile_type == 1:
-			sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
-		else:
-			sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, xFlip, yFlip)
-		_tile_sprite_cache[key] = sprite
+	if tile_type == 0:
+		sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
+	elif tile_type == 1:
+		sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
+	else:
+		sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, xFlip, yFlip)
 
 	sprite.x = screen_x * 8
 	sprite.y = screen_y * 8
 	return sprite
-
-def get_dialog_portrait_sprite():
-	global _dialog_portrait_sprite
-	if _dialog_portrait_sprite is None:
-		_dialog_portrait_sprite = cat_sprite()
-	return _dialog_portrait_sprite
 
 def draw_health_bar(hp: int, max_hp: int, offset: int, margin: int, middleOfScreen: int = 36):
 	willOverflow = (max_hp * 2 + margin) >= middleOfScreen
@@ -143,7 +124,8 @@ def addDialog(dialog: list[str], cat: Cat = None):
 		left_cats=[cat],
 		right_cats=[],
 		currentlyTalking=cat.name if cat else "",
-		lambda_after=None
+		lambda_after=None,
+		instaText=True
 	)
 	gameState.add_dialog(dialog)
 
@@ -170,14 +152,14 @@ def battle(attacker: Cat, defender: Cat):
 			defender.add_exp(int(attacker.stats.max_hp * expMultiplier), addDialog)
 			return
 
-	if attacker.stats.speed * int(1.5) > defender.stats.speed:
+	if attacker.stats.speed > defender.stats.speed * int(1.5):
 		attackerExp += record_attack(attacker, defender, is_counter=True)
 	if defender.hp <= 0:
 		attacker.add_exp(int(defender.stats.max_hp * expMultiplier), addDialog)
 		return
 
 	if dx + dy in defender_ranges:
-		if defender.stats.speed * int(1.5) > attacker.stats.speed:
+		if defender.stats.speed > attacker.stats.speed * int(1.5):
 			attackerExp += record_attack(defender, attacker, is_counter=True)
 		if attacker.hp <= 0:
 			defender.add_exp(int(attacker.stats.max_hp * expMultiplier), addDialog)
@@ -242,10 +224,17 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
 				gold = random.randint(1, int(defender.level * 1.5))
 				gameState.add_dialog(Dialog(
 					lines=[f"Looted {gold} ", "gold!"],
-					lambda_after=lambda: gameState.update_bank(gold)
+					lambda_after=lambda: gameState.update_bank(gold),
+					instaText=True
 				))
 		if defender in gameState.party:
 			gameState.party.remove(defender)
+		from Dialogs import get_death_dialog
+		log = get_death_dialog(defender.name)
+		if log is not None:
+			dialogs = build_dialogs(log, right=[defender])
+			for line in dialogs:
+				gameState.add_dialog(line)
 	expMultiplier = defender.level / attacker.level
 
 	return max(int(damage * expMultiplier + 0.49), 1)
@@ -296,14 +285,15 @@ def calculate_damage(attacker: Cat, defender: Cat):
 	if destroyed:
 		gameState.add_dialog(Dialog(
 			lines=[f"{attacker.name}'s", f"{attackerWeapon.name}", "broke!"],
-			lambda_after=None
+			lambda_after=None,
+			instaText=True
 		))
 		attacker.items.remove(attackerWeapon)
 	
 	return base_damage + bonus_damage if base_damage + bonus_damage > 0 else 1
 
 def handle_movement():
-	global gameState
+	global gameState, delay
 
 	x = gameState.level.selectorPosition.x
 	y = gameState.level.selectorPosition.y
@@ -316,8 +306,16 @@ def handle_movement():
 		"D": (0, 1)
 	}
 
+	moved = False
+
+	if delay > 0 and delay < 3:
+		delay += 1
+		return False
+
 	for button, (dx, dy) in directions.items():
 		if getattr(thumby, f"button{button}").justPressed() or getattr(thumby, f"button{button}").pressed():
+			moved = True
+			delay += 1
 			thumby.audio.play(note_to_freq("F#5"), 15)
 			new_x, new_y = x + dx, y + dy
 			if 0 <= new_y < len(gameState.level.map) and 0 <= new_x < len(gameState.level.map[0]):
@@ -333,6 +331,8 @@ def handle_movement():
 			canUpdate = isWalkable or gameState.selectedCatId is None
 			gameState.update_selector_position(x + (dx if canUpdate else 0), y + (dy if canUpdate else 0))
 			return True
+	if not moved:
+		delay = 0
 	return False
 
 def render_map(level):
@@ -514,7 +514,6 @@ def get_attack_tile(cat: Cat):
 while True:
 	frame += 1
 
-
 	partyFullyExhausted = all(p.exhausted for p in gameState.party) if gameState.party else None
 	if (gameState.state == 'map' or gameState.state == 'enemy-turn' or gameState.state == 'enemy-select')\
 	and not len(gameState.dialog) > 0 and not len(gameState.combat_log) > 0:
@@ -570,7 +569,7 @@ while True:
 			thumby.display.drawText('dodge' if log.dodge else 'miss', 40 if enemyAttacking else 8, 16, thumby.display.BLACK)
 
 		# Animate HP counting down
-		if (frame % 2 == 1): 
+		if (frame % 2 == 1):
 			if log.static_render_time > 0:
 				log.static_render_time -= 1
 			elif current_hp_display <= gameState.combat_log[0].new_hp or current_hp_display <= 0:
@@ -593,35 +592,52 @@ while True:
 			thumby.display.drawFilledRectangle(0, 14, 72, 10, thumby.display.WHITE)
 			thumby.display.drawLine(0, 24, 72, 24, thumby.display.BLACK)
 
-		thumby.display.drawLine(0, 14, 72, 14, thumby.display.BLACK)
+		thumby.display.drawLine(0, 14, 72, 14, thumby.display.DARKGRAY)
 
-		portrait = get_dialog_portrait_sprite()
-		yOffset = 1
-		xOffset = 4
-		for cat in dialog.left_cats:
-			portrait.x = xOffset
-			portrait.y = yOffset
-			thumby.display.drawSprite(portrait)
-			if cat and cat.name == dialog.currentlyTalking:
-				thumby.display.drawLine(xOffset + 3, yOffset +12, xOffset + 5, yOffset + 10, thumby.display.BLACK)
-				thumby.display.drawLine(xOffset + 5, yOffset + 10, xOffset + 7, yOffset + 12, thumby.display.BLACK)
-				thumby.display.drawLine(xOffset + 3, yOffset + 13, xOffset + 8,  yOffset + 13, thumby.display.WHITE)
-			xOffset += 10
-		xOffset = 62
-		for cat in dialog.right_cats:
-			portrait.x = xOffset
-			portrait.y = yOffset
-			thumby.display.drawSprite(portrait)
-			if cat and cat.name == dialog.currentlyTalking:
-				thumby.display.drawLine(xOffset + 3, yOffset +12, xOffset + 5, yOffset + 10, thumby.display.BLACK)
-				thumby.display.drawLine(xOffset + 5, yOffset + 10, xOffset + 7, yOffset + 12, thumby.display.BLACK)
-				thumby.display.drawLine(xOffset + 3, yOffset + 13, xOffset + 8,  yOffset + 13, thumby.display.WHITE)
-			xOffset -= 10
+		yOffset = 0
+		mouf_open = False
+		for cats, xOffset, step, mirror in ((dialog.left_cats, 2, 16, False), (dialog.right_cats, 56, -16, True)):
+			for cat in cats:
+				if isinstance(cat, Position):
+					cat = gameState.get_cat_by_position(cat)
+
+				if not cat:
+					continue
+				cat_portrait = cat_frame_sprite(xOffset, yOffset, cat_name=cat.name)
+				enemy_portrait = enemy_frame_sprite(xOffset, yOffset)
+				portrait = cat_portrait if not cat.enemy else enemy_portrait
+				portrait.mirrorX = mirror
+				fullLine = ''.join(dialog.lines)
+				curChar = fullLine[dialog.printIndex] if dialog.printIndex < len(fullLine) else ''
+				selected = cat and cat.name == dialog.currentlyTalking
+				if selected and (curChar.isalpha() or curChar.isdigit()) and not "aeiouy".find(curChar.lower()) != -1 and not dialog.printIndex >= dialog.charCount - 1:
+					portrait.setFrame(1)
+					mouf_open = True
+				else:
+					portrait.setFrame(0)
+				thumby.display.drawSprite(portrait)
+
+				if selected:
+					thumby.display.drawLine(xOffset + 4, yOffset + 14, xOffset + 6, yOffset + 12, thumby.display.DARKGRAY)
+					thumby.display.drawLine(xOffset + 6, yOffset + 12, xOffset + 8, yOffset + 14, thumby.display.DARKGRAY)
+					thumby.display.drawFilledRectangle(xOffset + 5, yOffset + 14, 3, 2, thumby.display.WHITE)
+					thumby.display.setPixel(xOffset + 6, yOffset + 13, thumby.display.WHITE)
+				xOffset += step
 		yOffset = 16
 
+		curIndex = dialog.printIndex
 		for line in dialog.lines:
-			thumby.display.drawText(line, 1, yOffset, thumby.display.BLACK)
+			if curIndex <= 0:
+				break
+			lineToPrint = line[:curIndex]
+			thumby.display.drawText(lineToPrint, 1, yOffset, thumby.display.BLACK)
+			curIndex -= len(line)
 			yOffset += 8
+
+		if dialog.printIndex < dialog.charCount:
+			dialog.printIndex += 1
+			notestring = "F#4" if mouf_open else "C4"
+			thumby.audio.play(note_to_freq(notestring), 5 if mouf_open else 8)
 
 		if dialog.timeout:
 			thumby.display.update()
@@ -630,12 +646,18 @@ while True:
 		else:
 			if thumby.buttonA.justPressed():
 				thumby.audio.play(note_to_freq("C#6"), 20)
-				if dialog.lambda_after:
-					dialog.lambda_after()
-				gameState.pop_dialog()
+				if dialog.printIndex >= dialog.charCount:
+					if dialog.lambda_after:
+						dialog.lambda_after()
+					gameState.pop_dialog()
+				else:
+					dialog.printIndex = dialog.charCount
 			if dialog.decision and thumby.buttonB.justPressed():
-				thumby.audio.play(note_to_freq("C6"), 20)
-				gameState.pop_dialog()
+				if dialog.printIndex >= dialog.charCount:
+					thumby.audio.play(note_to_freq("C6"), 20)
+					gameState.pop_dialog()
+				else:
+					dialog.printIndex = dialog.charCount
 
 	elif partyFullyExhausted is not None and partyFullyExhausted and gameState.player_turn and gameState.state == 'map':
 		thumby.audio.play(note_to_freq("Ab5"), 100)
@@ -728,16 +750,28 @@ while True:
 			thumby.display.fill(thumby.display.WHITE)
 			
 			if gameState.menu.title and gameState.menu.menu_index < len(gameState.menu.title):
-				thumby.display.drawText(gameState.menu.title[gameState.menu.menu_index](), 2, 0, thumby.display.DARKGRAY)
+				hasLeftMenu = gameState.menu.menu_index > 0
+				hasRightMenu = gameState.menu.menu_index < len(gameState.menu.options) - 1
+				thumby.display.drawText(gameState.menu.title[gameState.menu.menu_index](), 1 if not hasLeftMenu else 7, 0, thumby.display.DARKGRAY)
+				# if there is a menu to the left draw a blinking "<" to indicate that the user can go left
+				if hasLeftMenu:
+					if frame % 10 < 5:
+						thumby.display.drawText("<", 0, 0, thumby.display.DARKGRAY)
+				# if there is a menu to the right draw a blinking ">" to indicate that the user can go right
+				if hasRightMenu:
+					if frame % 10 < 5:
+						thumby.display.drawText(">", 66, 0, thumby.display.DARKGRAY)
 	
 			visible_options, offset = gameState.menu.get_visible_options()
 			for i, menu_option in enumerate(visible_options):
-				selected = thumby.display.BLACK if i + offset == gameState.menu.option_index else thumby.display.DARKGRAY
+				selected = thumby.display.DARKGRAY
 				if i + offset == gameState.menu.option_index:
-					thumby.display.drawRectangle(71, 9 + i * 8, 1, 5, thumby.display.BLACK)
-					thumby.display.drawRectangle(70, 10 + i * 8, 1, 3, thumby.display.BLACK)
-					thumby.display.drawRectangle(69, 11 + i * 8, 1, 1, thumby.display.BLACK)
-					thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, thumby.display.BLACK)
+					selected = thumby.display.DARKGRAY if frame % 5 == 0 else thumby.display.BLACK
+				if i + offset == gameState.menu.option_index:
+					thumby.display.drawRectangle(71, 9 + i * 8, 1, 5, selected)
+					thumby.display.drawRectangle(70, 10 + i * 8, 1, 3, selected)
+					thumby.display.drawRectangle(69, 11 + i * 8, 1, 1, selected)
+					thumby.display.drawRectangle(0, 8 + i * 8, 1, 7, selected)
 				thumby.display.drawText(menu_option.label, 2, 8 + i * 8, selected)
 
 			visible_options = gameState.menu.get_options()
@@ -836,6 +870,7 @@ while True:
 						activeEnemy.set_position(closest_tile)
 						activeEnemy.set_moved(True)
 						gameState.update_selector_position(closest_tile.x, closest_tile.y)
+						gameState.check_fight_dialogs(target, activeEnemy)
 						readyForBattle = True
 				elif closest_tile and not target:
 					houseToDestroy = None
@@ -874,16 +909,16 @@ while True:
 		thumby.display.fill(thumby.display.WHITE)
 		thumby.display.drawText("You Win!", 20, 24, thumby.display.BLACK)
 		if thumby.buttonA.justPressed():
-			thumby.audio.play(note_to_freq("F#6"), 100)
-			gameState.cancel_cat_select()
 			gameState.set_state('title')
+			gameState.cancel_cat_select()
+			thumby.audio.play(note_to_freq("F#6"), 100)
 
 	elif gameState.state == 'gameOver':
 		thumby.display.fill(thumby.display.WHITE)
 		thumby.display.drawText("Game Over", 15, 24, thumby.display.BLACK)
 		if thumby.buttonA.justPressed():
-			thumby.audio.play(note_to_freq("F#5"), 100)
-			gameState.cancel_cat_select()
 			gameState.set_state('title')
+			gameState.cancel_cat_select()
+			thumby.audio.play(note_to_freq("F#5"), 100)
 	
 	thumby.display.update()

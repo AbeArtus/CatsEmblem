@@ -3,6 +3,10 @@ import gc
 
 syspath.insert(0, '/Games/CatsEmblem')
 
+def checkClearMem(message: str):
+	gc.collect()
+	print(message, gc.mem_free(), "bytes free")
+
 from MapData import tileEncumberence, canWalkOn
 
 classEnum = {
@@ -80,9 +84,9 @@ class GrowthRates:
             self,
             attack: int = 40,
             defense: int = 40,
-            max_hp: int = 60,
-            speed: int = 60,
-            luck: int = 30,
+            max_hp: int = 50,
+            speed: int = 50,
+            luck: int = 25,
             range: int = 10
         ):
         self.attack = attack
@@ -420,7 +424,7 @@ class Cat:
             self.weaponExp.add_weapons(['lightning', 'water', 'earth'])
 
 class Dialog:
-    __slots__ = ('lines', 'currentlyTalking', 'left_cats', 'right_cats', 'lambda_after', 'decision', 'overlay', 'timeout')
+    __slots__ = ('lines', 'currentlyTalking', 'left_cats', 'right_cats', 'lambda_after', 'decision', 'overlay', 'timeout', 'printIndex', 'charCount')
 
     def __init__(
         self,
@@ -431,7 +435,8 @@ class Dialog:
         decision=True,
         lambda_after=None,
         overlay=False,
-        timeout=None
+        timeout=None,
+        instaText=False
     ):
         self.lines = lines if lines else []
         self.currentlyTalking = currentlyTalking
@@ -441,6 +446,9 @@ class Dialog:
         self.decision = decision
         self.overlay = overlay
         self.timeout = timeout
+        lines_str = ''.join(self.lines)
+        self.printIndex = 0 if timeout is None and not instaText else len(lines_str)
+        self.charCount = len(lines_str)
 
 class House:
     __slots__ = ('position', 'dialogs', 'preVisitedDialogs', 'postVisitDialog', 'visitCondition', 'multipleVisits', 'visited', 'destroyed')
@@ -469,7 +477,7 @@ class House:
         if self.multipleVisits:
             self.visited = False
             return
-        self.visited = True
+        if self.visitCondition(): self.visited = True
 
     def can_visit(self):
         if self.destroyed:
@@ -487,12 +495,11 @@ class House:
             print("House is destroyed, no dialogs available.")
             return []
         if self.preVisitedDialogs and not self.visited and not self.visitCondition():
-            return self.preVisitedDialogs
+            return self.preVisitedDialogs() if callable(self.preVisitedDialogs) else self.preVisitedDialogs
         if not self.visited and self.visitCondition():
-            return self.dialogs
+            return self.dialogs() if callable(self.dialogs) else self.dialogs
         if self.visited and self.postVisitDialog:
-            d = self.postVisitDialog
-            return d if isinstance(d, list) else [d]
+            return self.postVisitDialog() if callable(self.postVisitDialog) else self.postVisitDialog
         return []
 
     def destroy(self):
@@ -633,6 +640,8 @@ class Conversation:
         self.nameTwo = nameTwo
         self.condition = condition
 
+    get_dialogs = lambda self: self.dialogs() if callable(self.dialogs) else self.dialogs
+
 class Level:
     __slots__ = (
         'map', 'enemies', 'viewport', 'selectorPosition', 'number', 'seizePosition',
@@ -651,7 +660,8 @@ class Level:
         conversations=None,
         buttons=None,
         blockades=None,
-        overlayObjects=None
+        overlayObjects=None,
+        fightDialogs=None
     ):
         self.map = map
         self.enemies = enemies
@@ -666,6 +676,7 @@ class Level:
         self.buttons = buttons if buttons is not None else []
         self.blockades = blockades if blockades is not None else []
         self.overlayObjects = overlayObjects if overlayObjects is not None else []
+        self.fightDialogs = fightDialogs if fightDialogs is not None else []
 
     def find_valid_positions(self, cat: Cat, range: int, party: list[Cat]):
         gc.collect()
@@ -705,11 +716,6 @@ class Level:
         while queue:
             x, y, rem = queue.pop()
 
-            if not is_walkable(x, y):
-                continue
-            elif is_barrier(x, y):
-                continue
-
             key = (x, y)
             position_weight[key] = rem
             occupying_unit = get_occupying_unit(x, y)
@@ -724,8 +730,12 @@ class Level:
             if rem > 0:
                 for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                     nx, ny = x +dx, y + dy
+                    if not is_walkable(nx, ny) or is_barrier(nx, ny):
+                        continue
+                    encumbernce = tileEncumberence.get(self.map[ny][nx], 1)
+                    if rem - encumbernce < 0:
+                        continue
                     nkey = (nx, ny)
-                    encumbernce = tileEncumberence.get(self.map[y][x], 1)
                     if nkey not in position_weight or rem - encumbernce > position_weight[nkey]:
                         queue.append((nx, ny, rem - encumbernce))
 
@@ -777,17 +787,23 @@ def cat_head(x=16, y=14):
 def release_title_sprites():
     global _cat_head_sprite
     _cat_head_sprite = None
-    gc.collect()
 
-# --- UNITS (lazy) ---
-_unit_cache = {}
+def cat_frame_sprite(x=32, y=16, cat_name='cat'):
+    from MapData import cat_head_frame
+    from thumbyGrayscale import Sprite
+    return Sprite(14, 14, cat_head_frame(cat_name), x, y, key=1)
+
+def enemy_frame_sprite(x=32, y=16):
+    from MapData import enemy_head_frame
+    from thumbyGrayscale import Sprite
+    return Sprite(14, 14, enemy_head_frame(), x, y, key=1)
 
 def _build_cat_unit():
     return Cat(
         sprite=cat_sprite,
         position=Position(2, 4),
         name='cat',
-        stats=Stats(max_hp=10, defense=3, attack=4, luck=3, range=4),
+        stats=Stats(max_hp=10, defense=3, luck=3, range=4),
         growthRates=GrowthRates(attack=45, defense=45, luck=35, range=15),
         items=[itemDict['Stick'], itemDict['Tuna']],
     )
@@ -797,7 +813,7 @@ def _build_tac_unit():
         sprite=cat_sprite,
         position=Position(5, 13),
         name='tac',
-        stats=Stats(attack=4, defense=3, speed=4, range=4),
+        stats=Stats(attack=4, speed=4, luck=4, range=4),
         growthRates=GrowthRates(defense=50, speed=70, luck=25, range=15),
         items=[itemDict['Slngsht']]
     )
@@ -850,28 +866,24 @@ def _build_npc_unit():
         items=[]
     )
 
-def _get_or_create_unit(unit_name: str, factory):
-    if unit_name not in _unit_cache:
-        _unit_cache[unit_name] = factory()
-    return _unit_cache[unit_name]
 
 def get_cat():
-    return _get_or_create_unit('cat', _build_cat_unit)
+    return _build_cat_unit()
 
 def get_tac():
-    return _get_or_create_unit('tac', _build_tac_unit)
+    return _build_tac_unit()
 
 def get_mew():
-    return _get_or_create_unit('mew', _build_mew_unit)
+    return _build_mew_unit()
 
 def get_bub():
-    return _get_or_create_unit('bub', _build_bub_unit)
+    return _build_bub_unit()
 
 def get_bao():
-    return _get_or_create_unit('bao', _build_bao_unit)
+    return _build_bao_unit()
 
 def get_npc():
-    return _get_or_create_unit('npc', _build_npc_unit)
+    return _build_npc_unit()
 
 class PathPoint:
     __slots__ = ('position', 'visited')
@@ -907,7 +919,7 @@ def fetch_level(level_number):
     from Callbacks import CALLBACKS
     if level_number < 6:
         sys.modules.pop('ActTwo', None)
-        gc.collect()
+        checkClearMem("Loading Act One Levels")
         from ActOne import ActOneLevels, set_game_state_callbacks
         set_game_state_callbacks(*CALLBACKS)
         builder = (
@@ -915,10 +927,10 @@ def fetch_level(level_number):
             ActOneLevels._build_level4, ActOneLevels._build_level5
         )[level_number - 1]
         level = builder()
-        gc.collect()
+        checkClearMem("Loading Act One Levels")
         return level
     sys.modules.pop('ActOne', None)
-    gc.collect()
+    checkClearMem("Loading Act Two Levels")
     from ActTwo import ActTwoLevels, set_game_state_callbacks
     set_game_state_callbacks(*CALLBACKS)
     builder = (
@@ -926,5 +938,23 @@ def fetch_level(level_number):
         ActTwoLevels._build_level9, ActTwoLevels._build_level10
     )[level_number - 6]
     level = builder()
-    gc.collect()
+    checkClearMem("Loading Act Two Levels")
     return level
+
+def build_dialogs(specs, left=None, right=None):
+    for s in specs:
+        if s is None or len(s) < 1:  # Skip empty or None lines
+            continue
+        lines, talker = s[0], s[1] if len(s) > 1 else None
+        lambda_after = s[2] if len(s) > 2 else None
+        lines_split = lines.split('|')
+        decision = s[3] if len(s) > 3 else False
+        for i in range(0, len(lines_split), 3):
+            yield Dialog(
+                lines=lines_split[i:i+3],
+                left_cats=left if talker is not None else None,
+                right_cats=right if talker is not None else None,
+                currentlyTalking=talker,
+                lambda_after=lambda_after if i + 3 >= len(lines_split) else None,
+                decision=decision
+            )
