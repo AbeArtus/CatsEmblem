@@ -9,7 +9,6 @@ from Callbacks import add_to_party as add_party_member, update_bank as modify_ba
 def set_game_state_callbacks(*_args):
 	pass
 
-
 class ActOneLevels:
 	def _build_level1():
 		from MapData import get_map
@@ -17,7 +16,7 @@ class ActOneLevels:
 		npc = get_npc()
 		cat = get_cat()
 		tac = get_tac()
-		boss = generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior')
+		boss = generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior', deathDialog=[["If only|I was|a final|boss|I would|have kicked|your ass", 'Doug']])
 		bossId = boss.id
 		level = None
 		level = Level(
@@ -78,7 +77,6 @@ class ActOneLevels:
 						["Ahh peuny|Cats...||I will|destroy you|||I have|no time|for cats", boss.name],
 						["I really|dislike you", get_selected_cat().name],
 						["Your disdain|will be|short lived|I will|crush you|and this|village|if you|dare oppose|assimilation|we WILL|wipe every|rebel", boss.name],
-						[]
 					],
 					left=[boss],
 					right=[get_selected_cat()]
@@ -96,7 +94,7 @@ class ActOneLevels:
 		def visit_condition():
 			return level is not None and level.enemies == [] and can_give_item(Position(2,1))
 
-		guy = generate_enemy(3, Position(1, 12), ai='stand', name='guy', classType='warrior', )
+		guy = generate_enemy(3, Position(1, 12), ai='stand', name='guy', classType='warrior', deathDialog=[["I refuse|to be a|pawn.|The wings|of change|curse you", 'guy']])
 		level = Level(
 			map=get_map(2),
 			enemies=[
@@ -122,7 +120,7 @@ class ActOneLevels:
 					),
 					dialogs=lambda: build_dialogs(
 						[
-							["Thank you|for saving|us|The farms..|were|forced to|give crops.|Some homes|completely|destroyed", npc.name],
+							["Thank you|forced to|give crops.|Some homes|completely|destroyed", npc.name],
 							["Take this|mystic potion", None, lambda: give_item(Position(2,1), itemDict['MystPot'])],
 							["Received|Mystic|Potion", None]
 						],
@@ -135,7 +133,7 @@ class ActOneLevels:
 					position=Position(4, 1),
 					dialogs= lambda: build_dialogs(
 						[
-							["Trees,|grass,|and houses|give|extra|avoid|Youll need|all the|advantage|you can|get", npc.name],
+							["Trees,|grass,|and houses|give extra|avoid||Youll need|all the|advantage|you can|get", npc.name],
 						],
 						left=[npc],
 						right=[Position(4, 1)]
@@ -145,7 +143,7 @@ class ActOneLevels:
 					position=Position(12, 13),
 					dialogs= lambda: build_dialogs(
 						[
-							["I hear|some|items...|promote|trained|pupils|mystic quill|promotes to|sniper|mystic potion|promotes to|wizard|mystic meal|promotes to|warrior|you have|to be lv5|though", npc.name],
+							["I hear|some|items...|promote|trained|pupils|mystic quill|promotes to|sniper|mysticPotion|promotes to|wizard|mystic meal|promotes to|warrior|you have|to be lv5|though", npc.name],
 						],
 						left=[npc],
 						right=[Position(12, 13)]
@@ -153,7 +151,7 @@ class ActOneLevels:
 				)
 			],
 			fightDialogs=[
-				['*', 'guy', lambda: build_dialogs(
+				['*', guy.id, lambda: build_dialogs(
 					[
 						["Why bother|with runts|like you", 'guy'],
 						["RUNTS!?|Would you|say that|to someone|whos taken|out your|patrol?", get_selected_cat().name],
@@ -181,7 +179,7 @@ class ActOneLevels:
 			diff =  abs(selCat.position.x - mew.position.x) + abs(selCat.position.y - mew.position.y)
 			return abs(diff) <= 1
 
-		bar = generate_enemy(4, Position(13, 1), ai='stand', name='bar', classType='warrior'),
+		bar = generate_enemy(4, Position(13, 1), ai='stand', name='bar', classType='warrior', deathDialog=[["The filth|Will hear|of my|defeat|and I|Will be|avenged", 'bar']])
 		level = Level(
 			map=get_map(3),
 			enemies=[
@@ -288,7 +286,7 @@ class ActOneLevels:
 			return level is not None and level.enemies == [] and can_give_item(Position(7,13))
 				
 
-		himb = generate_enemy(5, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand')
+		himb = generate_enemy(5, Position(2, 13), name='himb', weapon='Spear', classType='warrior', ai='stand', deathDialog=[["I really|was excited|to crush|you|my raise|would have|been|priceless", 'himb']])
 		level = Level(
 			map=get_map(4),
 			enemies=[
@@ -343,7 +341,7 @@ class ActOneLevels:
 					position=Position(7, 13),
 					preVisitedDialogs=lambda: build_dialogs(
 						[
-							["I was working|and toxic|pigs showed", npc.name],
+							["I was|working|and toxic|pigs showed", npc.name],
 							["I thought|this was a|conspiracy", npc.name],
 							["I would|like them|gone", npc.name],
 						],
@@ -413,7 +411,7 @@ class ActOneLevels:
 				return False
 			items = selCat.items
 			item_names = [item.name for item in items]
-			return 'Tuna' in item_names and can_give_item(position)
+			return 'Tuna' in item_names
 		
 		def take_tuna(position: Position):
 			selCat = get_cat_at_position(position)
@@ -424,7 +422,7 @@ class ActOneLevels:
 				if item.name == 'Tuna':
 					selCat.items.remove(item)
 					break
-		wlbr = generate_enemy(6, Position(0, 15), name='wlbr', weapon='LghtngTm', classType='wizard', ai='stand')
+		wlbr = generate_enemy(6, Position(0, 15), name='wlbr', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["Welp, just|know its|really hot|in the|south so|if I dont|finish you|the heat|will", 'wlbr']])
 		level = Level(
 			map=get_map(5),
 			enemies=[
@@ -465,16 +463,11 @@ class ActOneLevels:
 					position=Position(14, 9),
 					dialogs=lambda: build_dialogs(
 						[
-							["Let me|give some|advice", npc.name],
-							["Snipers|overpower|Warriors", npc.name],
-							["Wizards|overpower|Snipers", npc.name],
-							["Warriors|overpower|Wizards", npc.name],
-							["So,","choose wisely", npc.name],
-							["Take 10g","all I","got", npc.name, lambda: modify_bank(10)],
+							["Let me|give some|advice|Snipers|overpower|Warriors|Wizards|overpower|Snipers|Warriors|overpower|Wizards|So choose|wisely||Here Take|10g all I|got", npc.name, lambda: modify_bank(10)],
 							["Received","10g", None]
 						],
-						left=npc,
-						right=Position(14, 9)
+						left=[npc],
+						right=[Position(14, 9)]
 					),
 					postVisitDialog=[
 						lambda: build_dialogs(
@@ -503,7 +496,8 @@ class ActOneLevels:
 						lines=["Found","Armor"],
 						lambda_after=lambda: give_item(Position(1,6), itemDict['Armor']),
 					)],
-					visitCondition=lambda: get_cat_at_position(Position(1, 6)) is not None and can_give_item(Position(1, 6))
+					visitCondition=lambda: get_cat_at_position(Position(1, 6)) is not None and can_give_item(Position(1, 6)),
+					indestructible=True
 				)
 			],
 			shops=[
@@ -517,14 +511,14 @@ class ActOneLevels:
 					]
 				)
 			],
-			fightDialogs=["*", wlbr, lambda: build_dialogs(
+			fightDialogs=[['*', 'wlbr', lambda: build_dialogs(
 				[
-					["This is|where the|charade|ends your|pretend hero|dies I|have one|job. Keeping|cats like|you out|of the|south island", 'wlbr'],
-					["Look at|me||I was|born to|be a|captain" if get_selected_cat().name != 'tac' else "*meow*|(cats like|me? whats|that even|mean?)", get_selected_cat().name],
+					["This is|where the|charade..|ends your|pretend hero|dies I|have one|job. Keeping|cats like|you out|of the|south island", 'wlbr'],
+					["Look at|me||I was|born to|be a captain|I will|get passage|to the|south" if get_selected_cat().name != 'tac' else "*meow*|(cats like|me? whats|that even|mean?)", get_selected_cat().name],
 				],
 				left=[wlbr],
 				right=[get_selected_cat()]
-			)]
+			)]]
 		)
 		return level
 

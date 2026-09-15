@@ -76,7 +76,6 @@ class Stats:
         self.luck = luck
         self.range = range
 
-
 class GrowthRates:
     __slots__ = ('attack', 'defense', 'max_hp', 'speed', 'luck', 'range')
 
@@ -184,7 +183,7 @@ class Cat:
         'id', '_sprite', '_sprite_factory', 'position', 'selected', 'exhausted',
         'name', 'stats', 'growthRates', 'enemy', 'hp', 'exp', 'moved', 'level',
         'next_level_exp', 'aiType', 'aiPath', 'items', 'max_items', 'classType',
-        'weaponExp', '_class_sprite', '_class_sprite_key'
+        'weaponExp', '_class_sprite', '_class_sprite_key', 'deathDialog'
     )
 
     def __init__(
@@ -204,7 +203,8 @@ class Cat:
         items=None,
         classType='pupil',
         weaponExp=None,
-        growthRates=None
+        growthRates=None,
+        deathDialog=None
     ):
         self.id = f"cat_{Cat._id_counter}"  # Generate a sequential ID
         Cat._id_counter += 1
@@ -234,6 +234,7 @@ class Cat:
         self.weaponExp = weaponExp if weaponExp else WeaponExp()
         self._class_sprite = None
         self._class_sprite_key = None
+        self.deathDialog = deathDialog
 
     @property
     def sprite(self):
@@ -451,7 +452,7 @@ class Dialog:
         self.charCount = len(lines_str)
 
 class House:
-    __slots__ = ('position', 'dialogs', 'preVisitedDialogs', 'postVisitDialog', 'visitCondition', 'multipleVisits', 'visited', 'destroyed')
+    __slots__ = ('position', 'dialogs', 'preVisitedDialogs', 'postVisitDialog', 'visitCondition', 'multipleVisits', 'visited', 'destroyed', 'indestructible')
 
     def __init__(
         self,
@@ -461,7 +462,8 @@ class House:
         postVisitDialog=None,
         visitCondition=None,
         multipleVisits=False,
-        destroyed=False
+        destroyed=False,
+        indestructible=False
     ):
         self.position = position
         self.dialogs = dialogs if dialogs else []
@@ -472,6 +474,7 @@ class House:
         self.multipleVisits = multipleVisits
         self.visited = False
         self.destroyed = destroyed
+        self.indestructible = indestructible
 
     def visit(self):
         if self.multipleVisits:
@@ -526,8 +529,6 @@ class Shop:
     ):
         self.position = position
         self.inventory = inventory
-
-# --- CLASSES ---
 
 class AttackLog:
     __slots__ = (
@@ -679,7 +680,7 @@ class Level:
         self.fightDialogs = fightDialogs if fightDialogs is not None else []
 
     def find_valid_positions(self, cat: Cat, range: int, party: list[Cat]):
-        gc.collect()
+        checkClearMem("Finding Valid Positions")
         map_width = len(self.map[0])
         map_height = len(self.map)
         cx = cat.position.x
@@ -745,6 +746,8 @@ _cat_sprite = None
 _enemy_sprite = None
 _button_sprite = None
 _cat_head_sprite = None
+_cat_frame_cache = {}
+_enemy_frame_cache = {}
 
 def cat_sprite():
     global _cat_sprite
@@ -791,12 +794,41 @@ def release_title_sprites():
 def cat_frame_sprite(x=32, y=16, cat_name='cat'):
     from MapData import cat_head_frame
     from thumbyGrayscale import Sprite
-    return Sprite(14, 14, cat_head_frame(cat_name), x, y, key=1)
+    # get from cache if available then fall back to creating a new sprite
+    if cat_name in _cat_frame_cache:
+        sprite = _cat_frame_cache[cat_name]
+        sprite.x = x
+        sprite.y = y
+        return sprite
+    else:
+        sprite = Sprite(14, 14, cat_head_frame(cat_name), x, y, key=1)
+        _cat_frame_cache[cat_name] = sprite
+    return sprite
 
-def enemy_frame_sprite(x=32, y=16):
+def enemy_frame_sprite(x=32, y=16, enemy_name='enemy'):
     from MapData import enemy_head_frame
     from thumbyGrayscale import Sprite
-    return Sprite(14, 14, enemy_head_frame(), x, y, key=1)
+    if enemy_name in _enemy_frame_cache:
+        sprite = _enemy_frame_cache[enemy_name]
+        sprite.x = x
+        sprite.y = y
+        return sprite
+    else:
+        sprite = Sprite(14, 14, enemy_head_frame(), x, y, key=1)
+        _enemy_frame_cache[enemy_name] = sprite
+    return sprite
+
+# Fixed roster of playable cats; also used to restore deathDialog when reconstructing cats from a save (load_game doesn't have a builder to attach it at creation).
+_PARTY_DEATH_DIALOGS = {
+    'cat': [["I guess|this wasn't|meant to be|I have|failed you|all", 'cat']],
+    'tac': [["I tried|my best|they are|too strong", 'tac']],
+    'mew': [["I refuse|to believe|my cruel|fate", 'mew']],
+    'bub': [["I really|wish we had|more time", 'bub']],
+    'bao': [["Atleast I|won't have|to see|cat pass,|best this|way", 'bao']],
+}
+
+def get_party_death_dialog(name):
+    return _PARTY_DEATH_DIALOGS.get(name)
 
 def _build_cat_unit():
     return Cat(
@@ -806,6 +838,7 @@ def _build_cat_unit():
         stats=Stats(max_hp=10, defense=3, luck=3, range=4),
         growthRates=GrowthRates(attack=45, defense=45, luck=35, range=15),
         items=[itemDict['Stick'], itemDict['Tuna']],
+        deathDialog=get_party_death_dialog('cat')
     )
 
 def _build_tac_unit():
@@ -815,7 +848,8 @@ def _build_tac_unit():
         name='tac',
         stats=Stats(attack=4, speed=4, luck=4, range=4),
         growthRates=GrowthRates(defense=50, speed=70, luck=25, range=15),
-        items=[itemDict['Slngsht']]
+        items=[itemDict['Slngsht']],
+        deathDialog=get_party_death_dialog('tac')
     )
 
 def _build_mew_unit():
@@ -826,7 +860,8 @@ def _build_mew_unit():
         stats=Stats(attack=4, max_hp=10, range=4, defense=3),
         items=[itemDict['Stick']],
         weaponExp=WeaponExp(repeater=10, sword=20),
-        growthRates=GrowthRates(attack=50, speed=65, range=15)
+        growthRates=GrowthRates(attack=50, speed=65, range=15),
+        deathDialog=get_party_death_dialog('mew')
     ).add_exp(40, None)
 
 def _build_bub_unit():
@@ -839,9 +874,9 @@ def _build_bub_unit():
         classType='sniper',
         items=[itemDict['Repeater'], itemDict['Tuna']],
         growthRates=GrowthRates(attack=60, defense=30, max_hp=55, speed=45, luck=40, range=15),
-        weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10)
+        weaponExp=WeaponExp(bow=10, longbow=50, repeater=35, sword=10),
+        deathDialog=get_party_death_dialog('bub')
     ).add_exp(100, None)
-
 
 def _build_bao_unit():
     return Cat(
@@ -854,7 +889,8 @@ def _build_bao_unit():
         classType='wizard',
         items=[itemDict['EarthTm'], itemDict['Tuna']],
         growthRates=GrowthRates(attack=45, defense=45, max_hp=65, speed=50, luck=50),
-        weaponExp=WeaponExp(lightning=60, water=20, earth=35, sword=10, repeater=15)
+        weaponExp=WeaponExp(lightning=60, water=20, earth=35, sword=10, repeater=15),
+        deathDialog=get_party_death_dialog('bao')
     ).add_exp(80, None)
 
 def _build_npc_unit():
@@ -865,7 +901,6 @@ def _build_npc_unit():
         enemy=False,
         items=[]
     )
-
 
 def get_cat():
     return _build_cat_unit()
@@ -895,7 +930,7 @@ class PathPoint:
     def mark_visited(self):
         self.visited = True
 
-def generate_enemy(level, position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil', path=None):
+def generate_enemy(level, position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil', path=None, deathDialog=None):
     bigBoiPath = []
     if path is not None:
         for p in path:
@@ -908,17 +943,16 @@ def generate_enemy(level, position, ai='searchAndDestroy', name='pig', weapon="S
         aiType=ai,
         items=[itemDict[weapon]],
         classType=classType,
-        aiPath=bigBoiPath
+        aiPath=bigBoiPath,
+        deathDialog=deathDialog
     )
     e.add_exp((level - 1) * 20, None)
     return e
-
 
 def fetch_level(level_number):
     import sys
     from Callbacks import CALLBACKS
     if level_number < 6:
-        sys.modules.pop('ActTwo', None)
         checkClearMem("Loading Act One Levels")
         from ActOne import ActOneLevels, set_game_state_callbacks
         set_game_state_callbacks(*CALLBACKS)
@@ -928,8 +962,8 @@ def fetch_level(level_number):
         )[level_number - 1]
         level = builder()
         checkClearMem("Loading Act One Levels")
+        sys.modules.pop('ActOne', None)
         return level
-    sys.modules.pop('ActOne', None)
     checkClearMem("Loading Act Two Levels")
     from ActTwo import ActTwoLevels, set_game_state_callbacks
     set_game_state_callbacks(*CALLBACKS)
@@ -939,6 +973,7 @@ def fetch_level(level_number):
     )[level_number - 6]
     level = builder()
     checkClearMem("Loading Act Two Levels")
+    sys.modules.pop('ActTwo', None)
     return level
 
 def build_dialogs(specs, left=None, right=None):
@@ -958,3 +993,12 @@ def build_dialogs(specs, left=None, right=None):
                 lambda_after=lambda_after if i + 3 >= len(lines_split) else None,
                 decision=decision
             )
+
+def clear_cache():
+    global _cat_sprite, _enemy_sprite, _button_sprite, _cat_head_sprite
+    _cat_sprite = None
+    _enemy_sprite = None
+    _button_sprite = None
+    _cat_head_sprite = None
+    _cat_frame_cache.clear()
+    _enemy_frame_cache.clear()

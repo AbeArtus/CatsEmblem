@@ -27,8 +27,8 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["Cats home|has been|saved for..|the meantime|but|resistence|is not|treated lightly.||Cat heads|south to|farmland|moving towards|the capital|of|cat island"],
-                    ["I really|don't want|fight but..|..I have|to protect|my home", 'cat'],
+                    ["Cats home|has been|saved for..|the meantime|but|resistence|is not|treated|lightly.|Cat heads|south to|farmland|moving towards|the capital|of|cat island"],
+                    ["I really|don't want|to fight but|I have|to protect|my home", 'cat'],
                     ['*meow*|(It matters|not the|want but|the action|dear cat)', 'tac'] if has_tac else None,
                     ['I like|you more|when you\'re|sleeping', 'cat'] if has_tac else None,
                 ],
@@ -47,6 +47,8 @@ class LevelDialogs:
                     ["*meow*|(I used|to come|here as|a kitten..|hated this|place.|Lets make|this quick|cat)", 'tac'] if has_tac else None,
                     ["Sure...|i can|try", 'cat'] if has_tac else ["wish i|had more|time to|spend here", 'cat'],
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
             # Add more dialogs for other levels as needed
         }
@@ -57,11 +59,13 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["With himbs|gone from|sand city|Cat heads|towards|cat lake|a place|long sacred|for recreation"],
+                    ["With himb|gone from|sand city|Cat arrives|at cat lake||a place|used for|recreation"],
                     ["Now tac|I know|you wish|we could|stay here|a while", 'cat'] if has_tac else ["I really|hope this|is safe|would rather|relax than|fight", 'cat'],
                     ["*meoow*|(My dreams|do include|this place|but mainly|the|bath house)", 'tac'] if has_tac else None,
                     ["Can you|understand|him cat?|Anyways|Just let|me take|any enemies", 'mew'] if has_mew and has_tac else None
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
             # Add more dialogs for other levels as needed
         }
@@ -73,28 +77,44 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["Cats lake|back to|peace|Cat departs|towards|the main|docks needing|a ride to|the south"],
-                    ["I think|we can|find a|boat here", 'cat'],
-                    ["*meow*|(Its been|weeks since|a good nap|just make|it quick)", 'tac'] if has_tac else None,
-                    ["Never been|to the port|However I..|know it|will be|a hot spot|for trouble", 'mew'] if has_mew else None,
-                    ["Dont worry|Ive been|before once|with my|father", 'cat'] if has_mew else None,
-                    ["Cat please|I didn't|realize I|would be|on this|journey with|no soup|this it torture", 'bao'] if has_bao else None,
-                    ["Its nothing|but tuna|since the|filth showed|up|how does|hot water|and tuna|sound", 'cat'] if has_bao else None,
-                    ["Cat I|dont know|if I can|handle this|journey without|a good meal", 'bao'] if has_bao else None,
+                    ["Cats lake|back to|peace|Cat heads|to the|main docks|needing|a ride to|the south"],
+                    ["we can|find a|boat here", 'cat'],
+                    ["*meow*|(Let me| go back))", 'tac'] if has_tac else None,
+                    ["Must be|a hot spot|for trouble", 'mew'] if has_mew else None,
+                    ["I think|We will|be fine", 'cat'] if has_mew else None,
+                    ["I need|soup", 'bao'] if has_bao else None,
+                    ["Its nothing|but tuna.|how does..|hot water|and tuna|sound", 'cat'] if has_bao else None,
+                    ["We will|see|I guess", 'bao'] if has_bao else None,
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
             # Add more dialogs for other levels as needed
         }
 
     def _build_level_six_dialogs(self, party):
+        has_tac = any(cat.name == 'tac' for cat in party)
+        has_mew = any(cat.name == 'mew' for cat in party)
+        has_bao = any(cat.name == 'bao' for cat in party)
         return {
             "intro": build_dialogs(
-                [["Welcome|to Level|Six!"]],
+                [
+                    ["With the|docks secured||Cat heads|to the|south island|now occupied|by the|filth"],
+                    ["I think|Im gonna|be sick|the tides...|ooooh|my stomach", 'cat'],
+                    ["*meow*|(Young lad|is missing|his sea|legs aye?)", 'tac'] if has_tac else None,
+                    ["I will|not let|your weak..|stomach|prevent|our freedom", 'mew'] if has_mew else None,
+                    ["Cat enters|the fenline|temple|once sacred|now occupied|by exel|the filth|elder"],
+                    ["exel the|last of|the retainers|has bub,|my love|captive|I must|free him", 'bao'] if has_bao else None,
+                ]
             ),
             # Add more dialogs for other levels as needed
         }
 
     def _build_level_seven_dialogs(self, party):
+        has_tac = any(cat.name == 'tac' for cat in party)
+        has_mew = any(cat.name == 'mew' for cat in party)
+        has_bao = any(cat.name == 'bao' for cat in party)
+        has_bub = any(cat.name == 'bub' for cat in party)
         return {
             "intro": build_dialogs(
                 [
@@ -158,18 +178,3 @@ class LevelDialogs:
             return self._build_level_ten_dialogs(party)
         else:
             raise ValueError(f"No dialogs defined for level {level_number}")
-
-def get_death_dialog(catName):
-    death_dialogs = {
-        "cat": [["I guess|this wasn't|meant to be|I have|failed you|all", 'cat']],
-        "tac": [["I tried|my best|they are|too strong", 'tac']],
-        "mew": [["I refuse|to believe|my cruel|fate", 'mew']],
-        "bub": [["I really|wish we had|more time", 'bub']],
-        "bao": [["Atleast I|won't have|to see|cat pass,|best this|way", 'bao']],
-        "Doug": [["If only|I was|a final|boss|I would|have kicked|your ass", 'Doug']],
-        "guy": [["I refuse|to be a|pawn.|The wings|of change|curse you", 'guy']],
-        "bar": [["The filth|Will hear|of my|defeat|and I|Will be|avenged", 'bar']],
-        "himb": [["I really|was excited|to crush|you|my raise|would have|been|priceless", 'himb']],
-        "wlbr": [["Welp, just|know its|really hot|in the|south so|if I dont|finish you|the heat|will", 'wlbr']],
-    }
-    return death_dialogs.get(catName, None)

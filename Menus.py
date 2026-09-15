@@ -318,11 +318,19 @@ def open_unit_menu(self, option_index=0):
             and weapon_in_range(item)
         ]
 
+        def pick_weapon_action(item_index):
+            def pick_weapon():
+                selectedCat.equip_item(item_index)
+                self.menu = None
+                self.set_state('enemy-select')
+                checkClearMem("Weapon Picked")
+            return pick_weapon
+
         self.enter_menu(menu=Menu(
             options=[[
                 Option(
                     label= f"{item.name}",
-                    action= lambda: (selectedCat.equip_item(i), self.set_state('enemy-select')),
+                    action= pick_weapon_action(i),
                     condition= lambda: True
                 ) for item, i in validWeapons
             ]],
@@ -336,6 +344,8 @@ def open_unit_menu(self, option_index=0):
             selectedCat.set_moved(True)
         self.cancel_cat_select()
         self.state = 'map'
+        self.menu = None
+        checkClearMem("Seize Action")
         self.load_next_level()
 
     def visit_house():

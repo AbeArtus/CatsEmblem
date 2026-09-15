@@ -43,7 +43,7 @@ class ActTwoLevels:
 				return False
 			diff =  abs(selCat.position.x - bub.position.x) + abs(selCat.position.y - bub.position.y)
 			return abs(diff) <= 1
-
+		exel = generate_enemy(7, Position(16, 3), name='exel', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'exel']])
 		level = Level(
 			map=get_map(6),
 			enemies=[
@@ -55,7 +55,7 @@ class ActTwoLevels:
 				generate_enemy(5, Position(11, 8), name='mut', weapon='LongBow', classType='sniper'),
 				generate_enemy(6, Position(15, 8), name='mut', weapon='Mace', classType='warrior'),
 				generate_enemy(5, Position(17, 8), name='mut', weapon='EarthTm', classType='wizard'),
-				generate_enemy(7, Position(16, 3), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				exel,
 				bub
 			],
 			number=6,
@@ -78,8 +78,8 @@ class ActTwoLevels:
 				Conversation(
 					dialogs=lambda: build_dialogs(
 						[
-							["Hello|bao, I|stinky...", bub.name],
-							["meow :(", get_selected_cat().name, lambda: (
+							["BAO im|so happy|to see you|I knew|you would|come", bub.name],
+							["Yeah I|guess so", get_selected_cat().name, lambda: (
 								level.enemies.remove(bub),
 								setattr(bub, 'enemy', False),
 								add_party_member(bub)
@@ -93,6 +93,17 @@ class ActTwoLevels:
 					nameTwo='bub',
 					condition=conversation_condition
 				)
+			],
+			fightDialogs=[
+				['*', 'exel', lambda: build_dialogs(
+					[
+						["Do you|think a|statue of|me would|look good|in gold|or silver|realize you|will be|the one|to mine it.You see,|filth is|inevitable|you will|not stop|the will|of mono", 'exel'],
+						["How dare|you jest|you will|not defile|this temple!|I've come|this far|you are|a mere|stepping|stone to|liberation", get_selected_cat().name] if get_selected_cat.name != 'cat' else ["*EeOw*|*meow*|(Id much|rather keep|the statues|we already|have.|Ohh,|and I WILL|kick]your ass)", get_selected_cat().name],
+						["A stepping|stone? You|better that|up little|cat", 'exel'] if get_selected_cat.name != 'cat' else ["What?|Am I|supposed to|understand|that?", 'exel'],
+					],
+					left=[exel],
+					right=[get_selected_cat()],
+				)]
 			]
 		)
 		return level
@@ -101,6 +112,7 @@ class ActTwoLevels:
 		from MapData import get_map
 		from Shared import get_npc, Position, generate_enemy, Shop, ShopItem, Level, House
 		npc = get_npc()
+		muke = generate_enemy(8, Position(9, 1), name='muke', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'muke']])
 		level = Level(
 			map=get_map(7),
 			enemies=[
@@ -112,7 +124,7 @@ class ActTwoLevels:
 				generate_enemy(5, Position(2, 2), name='mut', weapon='LongBow', classType='sniper'),
 				generate_enemy(6, Position(10, 2), name='mut', weapon='Spear', classType='warrior'),
 				generate_enemy(7, Position(8, 2), name='mut', weapon='LghtngTm', classType='wizard'),
-				generate_enemy(8, Position(9, 1), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				muke
 			],
 			number=7,
 			seizePosition=Position(9, 1),
@@ -167,6 +179,15 @@ class ActTwoLevels:
 						right=[get_cat_at_position(Position(5, 7))],
 					)
 				)
+			],
+			fightDialogs=[
+				['*', 'exel', lambda: build_dialogs(
+					[
+						["wow", 'muke']
+					],
+					left=[muke],
+					right=[get_selected_cat()],
+				)]
 			]
 		)
 		return level
@@ -192,6 +213,8 @@ class ActTwoLevels:
 			return False
 
 		npc = get_npc()
+		xl = generate_enemy(9, Position(4, 2), ai='stand', name='xl', weapon='Axe', classType='warrior', deathDialog=[["I guess|this is|the end|of my|journey", 'xl']])
+
 		level = Level(
 			map=get_map(8),
 			enemies=[
@@ -200,7 +223,7 @@ class ActTwoLevels:
 				generate_enemy(7, Position(5, 5), name='l', weapon='Spear', classType='warrior'),
 				generate_enemy(8, Position(3, 5), name='beef', classType='warrior', weapon='Spear'),
 				generate_enemy(8, Position(4, 5), name='wago', classType='sniper', weapon='Repeater'),
-				generate_enemy(9, Position(4, 2), ai='stand', name='xl', weapon='Axe', classType='warrior'),
+				xl
 			],
 			number=8,
 			seizePosition=Position(4, 2),
@@ -246,6 +269,15 @@ class ActTwoLevels:
 					),
 					visitCondition=lambda: house_condition2(Position(17, 10))
 				)
+			],
+			fightDialogs=[
+				['*', 'xl', lambda: build_dialogs(
+					[
+						["wow", 'xl']
+					],
+					left=[xl],
+					right=[get_selected_cat()],
+				)]
 			]
 		)
 		return level
@@ -269,6 +301,7 @@ class ActTwoLevels:
 				return True
 			return False
 
+		zero = generate_enemy(9, Position(16, 0), name='zero', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'zero']])
 		level = Level(
 			map=get_map(9),
 			enemies=[
@@ -282,7 +315,7 @@ class ActTwoLevels:
 				generate_enemy(8, Position(18, 2), name='mut', weapon='LghtngTm', classType='wizard'),
 				generate_enemy(8, Position(14, 2), name='mut', weapon='LongBow', classType='sniper'),
 				generate_enemy(8, Position(16, 2), name='mut', weapon='LghtngTm', classType='warrior'),
-				generate_enemy(9, Position(16, 0), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				zero
 			],
 			number=9,
 			seizePosition=Position(16, 0),
@@ -344,7 +377,16 @@ class ActTwoLevels:
 					]
 				)
 			],
-			blockades=[barrier1]
+			blockades=[barrier1],
+			fightDialogs=[
+				['*', 'zero', lambda: build_dialogs(
+					[
+						["wow", 'zero']
+					],
+					left=[zero],
+					right=[get_selected_cat()],
+				)]
+			]
 		)
 		return level
 
@@ -374,7 +416,8 @@ class ActTwoLevels:
 		barrier2 = Blockade(
 			positions=[Position(11, 9), Position(12, 9), Position(13, 9)]
 		)
-	
+
+		mono = generate_enemy(11, Position(12, 4), name='mono', weapon='EarthTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'mono']])
 		level = Level(
 			map=get_map(10),
 			enemies=[
@@ -388,13 +431,22 @@ class ActTwoLevels:
 				generate_enemy(9, Position(10, 6), name='mut', weapon='LghtngTm', classType='wizard'),
 				generate_enemy(10, Position(12, 6), name='mut', weapon='LongBow', classType='sniper'),
 				generate_enemy(10, Position(14, 6), name='mut', weapon='Mace', classType='warrior'),
-				generate_enemy(11, Position(12, 4), name='mut', weapon='LghtngTm', classType='wizard', ai='stand'),
+				mono,
 			],
 			number=10,
 			seizePosition=Position(12, 4),
 			startingPositions=[Position(10, 18), Position(11, 18), Position(12, 18), Position(13, 18), Position(14, 18)],
 			buttons=[button1, button2, button3, button4],
 			blockades=[barrier1, barrier2],
-			overlayObjects=[OverlayObject(position=Position(10, 0), objectName='cat_head', boundPositions=[Position(10, 0), Position(10, 4), Position(14, 4)])]
+			overlayObjects=[OverlayObject(position=Position(10, 0), objectName='cat_head', boundPositions=[Position(10, 0), Position(10, 4), Position(14, 4)])],
+			fightDialogs=[
+				['*', 'mono', lambda: build_dialogs(
+					[
+						["wow", 'mono']
+					],
+					left=[mono],
+					right=[get_selected_cat()],
+				)]
+			]
 		)
 		return level

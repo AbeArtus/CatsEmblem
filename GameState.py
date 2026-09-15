@@ -2,10 +2,20 @@ from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
 print("GameState.py loaded")
-from Shared import fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite, checkClearMem
+from Shared import clear_cache, fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite, checkClearMem, get_party_death_dialog
 import Menus
 
 _save_data = None
+
+def get_intro_dialogs(level_number, party):
+    import sys
+    from Dialogs import LevelDialogs
+
+    dialogs = LevelDialogs().get_dialogs_for_level(level_number, party)
+    intro = list(dialogs.get("intro", ()))
+    sys.modules.pop('Dialogs', None)
+    checkClearMem("Intro Dialogs Loaded")
+    return intro
 
 def get_save_data():
     global _save_data
@@ -113,7 +123,8 @@ class GameState:
                     next_level_exp=next_level_exp,
                     items=items,
                     classType=classType,
-                    weaponExp=weaponExp
+                    weaponExp=weaponExp,
+                    deathDialog=get_party_death_dialog(cat_name)
                 )
                 party.append(loadedCat)
         
@@ -137,6 +148,7 @@ class GameState:
         )
 
     def load_level(self, level=None):
+        clear_cache()
         self.level = None
         self.cached_domain = None
         self.combat_log = []
@@ -151,9 +163,7 @@ class GameState:
         self.level = level
         self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
         checkClearMem("Level Loaded")
-        from Dialogs import LevelDialogs
-        dialogs = LevelDialogs().get_dialogs_for_level(level.number, self.party)
-        for dialog in dialogs.get("intro", []):
+        for dialog in get_intro_dialogs(level.number, self.party):
             self.add_dialog(dialog)
 
     def set_state(self, new_state: str):
@@ -180,25 +190,36 @@ class GameState:
     def load_next_level(self):
         n = self.level.number
         if 1 <= n <= 6:
-            self.load_level(fetch_level(n + 1))
-            self.save_game()
+            target, should_save = n + 1, True
         elif n == 7 and len(self.party) == 5:
-            self.load_level(fetch_level(8))
-            self.save_game()
+            target, should_save = 8, True
         elif n == 7 or n == 8:
-            self.load_level(fetch_level(9))
-            self.save_game()
+            target, should_save = 9, True
         elif n == 9:
-            self.load_level(fetch_level(n + 1))
+            target, should_save = n + 1, False
         elif n == 10:
             self.state = 'end'
+            return
         else:
             self.state = 'gameover'
+            return
+
+        # Drop the old level/combat state before the next act's module is imported,
+        # so its compile has the most contiguous free memory available.
+        self.level = None
+        self.combat_log = []
+        self.dialog = []
+        clear_cache()
+        checkClearMem("Before Fetch Next Level")
+        self.load_level(fetch_level(target))
+        if should_save:
+            self.save_game()
 
     def add_dialog(self, dialog: 'Dialog'):
         self.dialog.append(dialog)
 
     def pop_dialog(self):
+        clear_cache()
         if self.dialog:
             self.dialog[0].printIndex = 0
             self.dialog.pop(0)
@@ -359,7 +380,8 @@ class GameState:
 
     def check_fight_dialogs(self, selected_cat: Cat, selected_enemy: Cat):
         for fightlog in self.level.fightDialogs:
-            if (fightlog[0] == selected_cat.id or fightlog[0] == '*') and (fightlog[1] == selected_enemy.id or fightlog[1] == '*'):
+            if (fightlog[0] == selected_cat.id or fightlog[0] == selected_cat.name or fightlog[0] == '*') \
+            and (fightlog[1] == selected_enemy.id or fightlog[1] == selected_enemy.name or fightlog[1] == '*'):
                 dialogs = fightlog[2]()
                 for dialog in dialogs:
                     self.add_dialog(dialog)
