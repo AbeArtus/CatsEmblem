@@ -4,7 +4,8 @@ syspath.insert(0, '/Games/CatsEmblem')
 
 from Items import itemDict
 
-from Callbacks import add_to_party as add_party_member, can_give_item, give_item, get_cat_at_pos as get_cat_at_position, get_selected_cat, build_dialogs
+from Callbacks import add_to_party as add_party_member, can_give_item, give_item, get_cat_at_pos as get_cat_at_position, get_selected_cat
+from Shared import build_dialogs
 
 def set_game_state_callbacks(*_args):
 	pass

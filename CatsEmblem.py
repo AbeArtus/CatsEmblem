@@ -32,7 +32,6 @@ thumby.display.enableGrayscale()
 
 import Callbacks
 
-# Define the gameState object
 gameState = GameState()
 Callbacks.set_game_state(gameState)
 checkClearMem("Callbacks")
@@ -492,7 +491,6 @@ def render_map(level):
 			   
 				text = f"{unit.name.upper()} {unit.hp}/{unit.stats.max_hp}"
 
-	# Render selector
 	selector_sprite.x = (gameState.level.selectorPosition.x - gameState.level.viewport.x) * 8 - 1
 	selector_sprite.y = (gameState.level.selectorPosition.y - gameState.level.viewport.y) * 8 - 1
 
@@ -618,7 +616,6 @@ while True:
 			beep = current_hp_display < gameState.combat_log[0].defender_hp
 			cat = 4 if attackRange else 0
 
-			# Display based on who is attacking (party is always on the right, enemy always on the left)
 			middleOfScreen = 36
 			enemyAttacking = log.attacker_enemy
 			margin = 1 if enemyAttacking else 2
@@ -634,7 +631,6 @@ while True:
 				damage_x = 71 - (len(str(log.damage)) + 1) * 6 if enemyAttacking else 2
 				thumby.display.drawText(f"-{log.damage}", damage_x, 2, thumby.display.LIGHTGRAY)
 
-			# render the cats
 			log.attacker_sprite.x = 8 + cat if enemyAttacking else 56 - cat
 			log.attacker_sprite.y = 8
 			thumby.display.drawSprite(log.attacker_sprite)
@@ -646,7 +642,6 @@ while True:
 					if (frame % 2 == 1): thumby.audio.play(note_to_freq("C5" if enemyAttacking else "G#4"), 40)
 				thumby.display.drawText('dodge' if log.dodge else 'miss', 40 if enemyAttacking else 8, 16, thumby.display.BLACK)
 
-			# Animate HP counting down
 			if (frame % 2 == 1):
 				if log.static_render_time > 0:
 					log.static_render_time -= 1
@@ -766,7 +761,6 @@ while True:
 				if gameState.selectedCatId is not None:
 					gameState.cancel_cat_select()
 				else:
-					# cycle through party memebers
 					active_cats = [c for c in gameState.party if not c.moved and not c.exhausted]
 
 					if len(active_cats) > 0:
@@ -787,11 +781,9 @@ while True:
 					hasLeftMenu = gameState.menu.menu_index > 0
 					hasRightMenu = gameState.menu.menu_index < len(gameState.menu.options) - 1
 					thumby.display.drawText(gameState.menu.title[gameState.menu.menu_index](), 1 if not hasLeftMenu else 7, 0, thumby.display.DARKGRAY)
-					# if there is a menu to the left draw a blinking "<" to indicate that the user can go left
 					if hasLeftMenu:
 						if frame % 10 < 5:
 							thumby.display.drawText("<", 0, 0, thumby.display.DARKGRAY)
-					# if there is a menu to the right draw a blinking ">" to indicate that the user can go right
 					if hasRightMenu:
 						if frame % 10 < 5:
 							thumby.display.drawText(">", 66, 0, thumby.display.DARKGRAY)

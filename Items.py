@@ -21,7 +21,7 @@ class Item:
         self.crit = crit
         self.allowedClasses = allowedClasses if allowedClasses else ['pupil']
         self.weaponType = weaponType
-        self.durability = durability if durability is not None else 0  # None means infinite durability
+        self.durability = durability if durability is not None else 0
 
     def can_use(self, classType: str):
         return classType in self.allowedClasses
@@ -35,8 +35,8 @@ class Item:
         if self.durability is not None:
             self.durability -= 1
             if self.durability <= 0:
-                return True  # Weapon is broken
-        return False  # Weapon is still usable
+                return True
+        return False
 
     def get_range(self):
         if self.range == 12:
@@ -127,7 +127,7 @@ class LazyItemDict:
     def __getitem__(self, key):
         if key not in self:
             raise KeyError(key)
-        return _build_item(key).clone()  # Return a clone to avoid shared state issues
+        return _build_item(key).clone()
 
     def get(self, key, default=None):
         if key in self:

@@ -43,9 +43,7 @@ TILE_CLIFF_WATER_XYFLIP = 39
 TILE_BLOCKADE = 40
 TILE_HOUSE_DESTROYED = 41
 
-# sprite bytes only; flips live in _tile_flip_overrides
 tiles = {
-	# AttributeError: type object 'bytearray' has no attribute 'fromhex' micro python, what else can we do here? I guess we could just use bytes() instead of bytearray() and then convert to bytearray() later if needed.
 	0: (bytearray(unhexlify('ffffffffffffffff')), bytearray(unhexlify('0040004004000400'))),
 	1: (bytearray(unhexlify('ffffffff7fffffff')), bytearray(unhexlify('0000607cff7c6000'))),
 	2: (bytearray(unhexlify('fffffffffffce31f')), bytearray(unhexlify('c0f0fcfffffffce0'))),
@@ -94,7 +92,6 @@ _tile_flip_overrides = {
 _tiles = {}
 def get_tile_data(tile_type):
 	sprite = tiles.get(tile_type)
-	## convert the sprite to a bytearray if it is not already on
 	if sprite:
 		return sprite, False, False, 8, 8
 	override = _tile_flip_overrides.get(tile_type)

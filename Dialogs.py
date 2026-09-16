@@ -8,9 +8,9 @@ class LevelDialogs:
         yield from dialogs2
 
     def _build_level_one_dialogs(self, party):
-        cat = party[0]  # Assuming the first cat in the party is the main character
+        cat = party[0]
 
-        dialogs = build_dialogs( ## I want to spead both outputs to be in the same array
+        dialogs = build_dialogs(
                 [["A lonely|island,||void|of humans.||Originally|Inhabited|by Cats.|once unknown|now deeply|exploited.|biowaste|plagues|the island.|A small|cat named|cat|Lives|in a port|town of|this island"]],
             )
         dialogs2 = build_dialogs(
@@ -35,7 +35,6 @@ class LevelDialogs:
                 left=[cat for cat in party[:middleIndex]],
                 right=[cat for cat in party[middleIndex:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_three_dialogs(self, party):
@@ -50,7 +49,6 @@ class LevelDialogs:
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_four_dialogs(self, party):
@@ -67,7 +65,6 @@ class LevelDialogs:
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_five_dialogs(self, party):
@@ -89,7 +86,6 @@ class LevelDialogs:
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_six_dialogs(self, party):
@@ -105,9 +101,10 @@ class LevelDialogs:
                     ["I will|not let|your weak..|stomach|prevent|our freedom", 'mew'] if has_mew else None,
                     ["Cat enters|the fenline|temple|once sacred|now occupied|by exel|the filth|elder"],
                     ["exel the|last of|the retainers|has bub,|my love|captive|I must|free him", 'bao'] if has_bao else None,
-                ]
+                ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_seven_dialogs(self, party):
@@ -120,8 +117,9 @@ class LevelDialogs:
                 [
                     ["Welcome|to Level|Seven!"],
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_eight_dialogs(self, party):
@@ -130,8 +128,9 @@ class LevelDialogs:
                 [
                     ["Welcome|to Level|Eight!"],
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_nine_dialogs(self, party):
@@ -140,8 +139,9 @@ class LevelDialogs:
                 [
                     ["Welcome|to Level|Nine!"],
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def _build_level_ten_dialogs(self, party):
@@ -151,8 +151,9 @@ class LevelDialogs:
                     ["Welcome|to Level Ten!"],
                     ["This is the final level."],
                 ],
+                left=[cat for cat in party[:len(party)//2]],
+                right=[cat for cat in party[len(party)//2:]]
             ),
-            # Add more dialogs for other levels as needed
         }
 
     def get_dialogs_for_level(self, level_number, party):

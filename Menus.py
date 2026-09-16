@@ -410,7 +410,6 @@ def open_unit_menu(self, option_index=0):
             if firstFound and secondFound:
                 for dialog in conversationDialogs:
                     self.add_dialog(dialog)
-                # remove conversation so it can't be triggered again
                 self.level.conversations.remove(conversation)
                 selectedCat.set_exhausted(True)
                 exit_menu()

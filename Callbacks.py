@@ -1,7 +1,3 @@
-# Shared callbacks between the main game loop and the act level modules.
-# Kept tiny so it can be imported by CatsEmblem.py, ActOne.py and ActTwo.py
-# without circular imports or extra memory cost.
-
 _game_state = None
 
 def set_game_state(gs):

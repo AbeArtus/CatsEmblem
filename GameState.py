@@ -48,7 +48,7 @@ class GameState:
         self.menu = None
         self.lastPos = Position()
 
-    def save_game(self):
+    def save_game(self, level_number=None):
         saveData = get_save_data()
 
         saveData.delItem("gameState-bank")
@@ -56,7 +56,7 @@ class GameState:
         saveData.delItem("gameState-party")
 
         saveData.setItem("gameState-bank", self.bank)
-        saveData.setItem("gameState-level-number", self.level.number)
+        saveData.setItem("gameState-level-number", level_number if level_number is not None else self.level.number)
         saveData.setItem("gameState-party", [cat.name for cat in self.party])
         for cat in self.party:
             cat.save_state(saveData)
@@ -140,7 +140,6 @@ class GameState:
             saveData.hasItem("gameState-level-number")
             and saveData.hasItem("gameState-party")
             and saveData.hasItem("gameState-bank")
-            ## check that we have the stats and items for each cat in the party
             and all(
                 saveData.hasItem(f"{cat_name}_stats") and saveData.hasItem(f"{cat_name}_items") and saveData.hasItem(f"{cat_name}_durabilities")
                 for cat_name in saveData.getItem("gameState-party")
@@ -204,16 +203,14 @@ class GameState:
             self.state = 'gameover'
             return
 
-        # Drop the old level/combat state before the next act's module is imported,
-        # so its compile has the most contiguous free memory available.
         self.level = None
         self.combat_log = []
         self.dialog = []
         clear_cache()
         checkClearMem("Before Fetch Next Level")
-        self.load_level(fetch_level(target))
         if should_save:
-            self.save_game()
+            self.save_game(level_number=target)
+        self.load_level(fetch_level(target))
 
     def add_dialog(self, dialog: 'Dialog'):
         self.dialog.append(dialog)
@@ -385,7 +382,6 @@ class GameState:
                 dialogs = fightlog[2]()
                 for dialog in dialogs:
                     self.add_dialog(dialog)
-                # remove the fightlog so it doesn't trigger again
                 self.level.fightDialogs.remove(fightlog)
                 break
 

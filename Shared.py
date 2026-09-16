@@ -206,7 +206,7 @@ class Cat:
         growthRates=None,
         deathDialog=None
     ):
-        self.id = f"cat_{Cat._id_counter}"  # Generate a sequential ID
+        self.id = f"cat_{Cat._id_counter}"
         Cat._id_counter += 1
         self._sprite = None
         self._sprite_factory = None
@@ -708,11 +708,9 @@ class Level:
                             return True
             return False
 
-        # Single dict replaces both visited set and string-keyed position_weight dict.
-        # Tracks best remaining_range seen per (x, y); skip re-processing if not improved.
         position_weight = {}
         valid_positions = set()
-        queue = [(cx, cy, range)]  # used as a stack — pop() is O(1) vs pop(0) O(n)
+        queue = [(cx, cy, range)]
 
         while queue:
             x, y, rem = queue.pop()
@@ -794,7 +792,6 @@ def release_title_sprites():
 def cat_frame_sprite(x=32, y=16, cat_name='cat'):
     from MapData import cat_head_frame
     from thumbyGrayscale import Sprite
-    # get from cache if available then fall back to creating a new sprite
     if cat_name in _cat_frame_cache:
         sprite = _cat_frame_cache[cat_name]
         sprite.x = x
@@ -818,7 +815,6 @@ def enemy_frame_sprite(x=32, y=16, enemy_name='enemy'):
         _enemy_frame_cache[enemy_name] = sprite
     return sprite
 
-# Fixed roster of playable cats; also used to restore deathDialog when reconstructing cats from a save (load_game doesn't have a builder to attach it at creation).
 _PARTY_DEATH_DIALOGS = {
     'cat': [["I guess|this wasn't|meant to be|I have|failed you|all", 'cat']],
     'tac': [["I tried|my best|they are|too strong", 'tac']],
@@ -978,7 +974,7 @@ def fetch_level(level_number):
 
 def build_dialogs(specs, left=None, right=None):
     for s in specs:
-        if s is None or len(s) < 1:  # Skip empty or None lines
+        if s is None or len(s) < 1:
             continue
         lines, talker = s[0], s[1] if len(s) > 1 else None
         lambda_after = s[2] if len(s) > 2 else None
