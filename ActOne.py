@@ -16,7 +16,7 @@ class ActOneLevels:
 		npc = get_npc()
 		cat = get_cat()
 		tac = get_tac()
-		boss = generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior', deathDialog=[["If only|I was|a final|boss|I would|have kicked|your ass", 'Doug']])
+		boss = generate_enemy(2, Position(1, 2), ai='stand', name='Doug', classType='warrior', deathDialog=[["If only|I was|a final|boss|I would|have kicked|your ass|Like you|could make|it that|far anyways|the seven|retainers|will|avenge me", 'Doug']])
 		bossId = boss.id
 		level = None
 		level = Level(
@@ -74,7 +74,7 @@ class ActOneLevels:
 			fightDialogs=[
 				['*', bossId, lambda: build_dialogs(
 					[
-						["Ahh peuny|Cats...||I will|destroy you|||I have|no time|for cats", boss.name],
+						["Ahh peuny|Cats...||Looking for|Your mayor?|hahaha|You really|are|clueless|I will|destroy you|||I have|no time|for cats", boss.name],
 						["I really|dislike you", get_selected_cat().name],
 						["Your disdain|will be|short lived|I will|crush you|and this|village|if you|dare oppose|assimilation|we WILL|wipe every|rebel", boss.name],
 					],
@@ -341,7 +341,7 @@ class ActOneLevels:
 					position=Position(7, 13),
 					preVisitedDialogs=lambda: build_dialogs(
 						[
-							["I was|working|and toxic|pigs showed", npc.name],
+							["I was|working|and filth|showed", npc.name],
 							["I thought|this was a|conspiracy", npc.name],
 							["I would|like them|gone", npc.name],
 						],

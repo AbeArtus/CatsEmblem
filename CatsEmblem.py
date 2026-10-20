@@ -134,7 +134,7 @@ def render_dialog(dialog):
 		if dialog.printIndex == _dialog_index + 1:
 			index = _dialog_index
 			for row, line in enumerate(dialog.lines):
-				if index < len(line):
+				if 0 <= index < len(line):
 					thumby.display.drawText(line[index], 1 + index * 6, 16 + row * 8, thumby.display.BLACK)
 					break
 				index -= len(line)
@@ -956,10 +956,9 @@ while True:
 		import sys, gc
 		sys.print_exception(e)
 		thumby.display.fill(thumby.display.WHITE)
-		thumby.display.drawText("Script Error", 2, 2, thumby.display.BLACK)
+		thumby.display.drawText("OOPS Error", 2, 2, thumby.display.BLACK)
 		thumby.display.drawText(type(e).__name__, 2, 12, thumby.display.BLACK)
 		thumby.display.drawText(str(e)[:20], 2, 22, thumby.display.BLACK)
-		thumby.display.drawText(f"free {gc.mem_free()}", 2, 32, thumby.display.BLACK)
 		thumby.display.update()
 		while True:
 			pass

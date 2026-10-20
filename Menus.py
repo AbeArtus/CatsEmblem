@@ -99,7 +99,7 @@ def open_item_menu(self, option_index=0):
                                 selectedCat.items[0] = selectedCat.items[item_index]
                                 selectedCat.items[item_index] = temp
 
-                                self.state = 'map'
+                                exit_menu()
                             return equip_item
 
                         item_action_options.append(Option(

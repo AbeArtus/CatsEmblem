@@ -27,10 +27,10 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["Cats home|has been|saved for..|the meantime|but|resistence|is not|treated|lightly.|Cat heads|south to|farmland|moving towards|the capital|of|cat island"],
+                    ["Cats home|has been|saved for..|the meantime|but|resistence|is not|treated|lightly.|Cat heads|south to|farmland|in search|of the first|of the 7|retainers",],
                     ["I really|don't want|to fight but|I have|to protect|my home", 'cat'],
-                    ['*meow*|(It matters|not the|want but|the action|dear cat)', 'tac'] if has_tac else None,
-                    ['I like|you more|when you\'re|sleeping', 'cat'] if has_tac else None,
+                    ['*meow*|(It matters|not the|want but|the action|dear cat|Plus..|||The seven|retainers|are chumps)', 'tac'] if has_tac else None,
+                    ['Pardon?|But yes|I suppose|we must|continue', 'cat'] if has_tac else None,
                 ],
                 left=[cat for cat in party[:middleIndex]],
                 right=[cat for cat in party[middleIndex:]]
@@ -57,7 +57,7 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["With himb|gone from|sand city|Cat arrives|at cat lake||a place|used for|recreation"],
+                    ["With bar|gone from|sand city|Cat arrives|at cat lake||a place|used for|recreation"],
                     ["Now tac|I know|you wish|we could|stay here|a while", 'cat'] if has_tac else ["I really|hope this|is safe|would rather|relax than|fight", 'cat'],
                     ["*meoow*|(My dreams|do include|this place|but mainly|the|bath house)", 'tac'] if has_tac else None,
                     ["Can you|understand|him cat?|Anyways|Just let|me take|any enemies", 'mew'] if has_mew and has_tac else None
@@ -76,7 +76,7 @@ class LevelDialogs:
                 [
                     ["Cats lake|back to|peace|Cat heads|to the|main docks|needing|a ride to|the south"],
                     ["we can|find a|boat here", 'cat'],
-                    ["*meow*|(Let me| go back))", 'tac'] if has_tac else None,
+                    ["*meow*|(Let me| go back)", 'tac'] if has_tac else None,
                     ["Must be|a hot spot|for trouble", 'mew'] if has_mew else None,
                     ["I think|We will|be fine", 'cat'] if has_mew else None,
                     ["I need|soup", 'bao'] if has_bao else None,
@@ -100,7 +100,7 @@ class LevelDialogs:
                     ["*meow*|(Young lad|is missing|his sea|legs aye?)", 'tac'] if has_tac else None,
                     ["I will|not let|your weak..|stomach|prevent|our freedom", 'mew'] if has_mew else None,
                     ["Cat enters|the fenline|temple|once sacred|now occupied|by exel|the filth|elder"],
-                    ["exel the|last of|the retainers|has bub,|my love|captive|I must|free him", 'bao'] if has_bao else None,
+                    ["exel the|second|last of|the retainers|has bub,|my love|captive|I must|free him", 'bao'] if has_bao else None,
                 ],
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
@@ -115,7 +115,12 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["Welcome|to Level|Seven!"],
+                    ["With one last|of the retainers|remaining|Cat arrives|to mount cat|in search|of muke"],
+                    ["Just get|nastier the|further we go", 'cat'],
+                    ["*meow*|(My beans...|Soggy)", 'tac'] if has_tac else None,
+                    ["This is|an odd|place|Mostly for|high mages.|I'd leave no stone un turned", 'mew'] if has_mew else None,
+                    ["I spent|a few months|here|studying the|ancient arts", 'bao'] if has_bao else None,
+                    ["Im just|happy to|be here", 'bub'] if has_bub else None,
                 ],
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
