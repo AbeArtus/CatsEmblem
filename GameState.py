@@ -2,20 +2,11 @@ from sys import path as syspath
 syspath.insert(0, '/Games/CatsEmblem')
 
 print("GameState.py loaded")
-from Shared import clear_cache, fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, cat_sprite, checkClearMem, get_party_death_dialog
+from Shared import clear_cache, clear_tile_cache, fetch_level, Cat, Dialog, Menu, Position, Stats, WeaponExp, classEnum, itemDict, get_cat, checkClearMem, get_party_death_dialog
 import Menus
+from MapData import canWalkOn
 
 _save_data = None
-
-def get_intro_dialogs(level_number, party):
-    import sys
-    from Dialogs import LevelDialogs
-
-    dialogs = LevelDialogs().get_dialogs_for_level(level_number, party)
-    intro = list(dialogs.get("intro", ()))
-    sys.modules.pop('Dialogs', None)
-    checkClearMem("Intro Dialogs Loaded")
-    return intro
 
 def get_save_data():
     global _save_data
@@ -38,6 +29,7 @@ class GameState:
         ):
         self.bank = 0
         self.party = party if party else []
+        self.summons = []
         self.selectedCatId: str | None = None
         self.load_level(level)
         self.player_turn = True
@@ -114,7 +106,6 @@ class GameState:
                 )
                 
                 loadedCat = Cat(
-                    sprite=cat_sprite,
                     position=position,
                     name=cat_name,
                     stats=stats,
@@ -132,7 +123,7 @@ class GameState:
         
         checkClearMem("Loading Game State")
         level_number = saveData.getItem("gameState-level-number")
-        self.load_level(fetch_level(level_number))
+        self.load_level(fetch_level(level_number, self.party))
 
     def has_saved_game(self):
         saveData = get_save_data()
@@ -148,7 +139,9 @@ class GameState:
 
     def load_level(self, level=None):
         clear_cache()
+        clear_tile_cache()
         self.level = None
+        self.summons = []
         self.cached_domain = None
         self.combat_log = []
         self.dialog = []
@@ -162,8 +155,8 @@ class GameState:
         self.level = level
         self.update_selector_position(level.startingPositions[0].x, level.startingPositions[0].y)
         checkClearMem("Level Loaded")
-        for dialog in get_intro_dialogs(level.number, self.party):
-            self.add_dialog(dialog)
+        self.dialog = level.intro
+        level.intro = []
 
     def set_state(self, new_state: str):
         if new_state == 'title':
@@ -180,10 +173,24 @@ class GameState:
                 cat.set_moved(False)
         self.state = new_state
 
+    def quit_to_title(self):
+        from gc import collect
+        self.party = []
+        self.summons = []
+        self.dialog = []
+        self.combat_log = []
+        self.menu = None
+        self.selectedCatId = None
+        self.cached_domain = None
+        self.player_turn = True
+        self.level = None
+        self.state = 'title'
+        collect()
+
     def start_game(self):
         checkClearMem("Starting New Game")
         self.party = [get_cat()]
-        self.load_level(fetch_level(1))
+        self.load_level(fetch_level(1, self.party))
         checkClearMem("New Game Started")
 
     def load_next_level(self):
@@ -210,7 +217,7 @@ class GameState:
         checkClearMem("Before Fetch Next Level")
         if should_save:
             self.save_game(level_number=target)
-        self.load_level(fetch_level(target))
+        self.load_level(fetch_level(target, self.party))
 
     def add_dialog(self, dialog: 'Dialog'):
         self.dialog.append(dialog)
@@ -254,10 +261,17 @@ class GameState:
     def find_valid_positions(self, cat: Cat, range_distance: int):
         if not self.level:
             return []
-        return self.level.find_valid_positions(cat, range_distance, self.party)
+        return self.level.find_valid_positions(cat, range_distance, self.party + self.summons)
 
     def end_turn(self):
         self.cancel_cat_select()
+        if self.player_turn and self.summons and self.state != 'summon-turn' and len(self.level.enemies) > 0:
+            for unit in self.summons:
+                unit.set_exhausted(False)
+                unit.set_moved(False)
+            self.exit_menu()
+            self.state = 'summon-turn'
+            return
         if len(self.level.enemies) == 0:
             for cat in self.party:
                 cat.set_exhausted(False)
@@ -320,7 +334,7 @@ class GameState:
         self.level.viewport.y = viewport_y
 
     def units_in_range(self, position: Position, range_distance: int):
-        return [u for u in self.party + self.level.enemies
+        return [u for u in self.party + self.summons + self.level.enemies
                 if abs(u.position.x - position.x) + abs(u.position.y - position.y) <= range_distance]
 
     def cat_is_on_shop(self):
@@ -366,11 +380,32 @@ class GameState:
         checkClearMem("Opening Stats")
         return self.open_stats(unit)
 
+    def summon_tile_valid(self, cat: Cat, position: Position):
+        tome = cat.items[0] if cat.items else None
+        if tome is None or not tome.is_tome():
+            return False
+        dist = abs(position.x - cat.position.x) + abs(position.y - cat.position.y)
+        if dist < 1 or dist > max(tome.get_range()):
+            return False
+        if not (0 <= position.y < len(self.level.map) and 0 <= position.x < len(self.level.map[0])):
+            return False
+        return self.level.map[position.y][position.x] in canWalkOn and not self.is_occupied(position)
+
+    def first_summon_tile(self, cat: Cat):
+        reach = max(cat.items[0].get_range())
+        for d in range(1, reach + 1):
+            for dx in range(-d, d + 1):
+                for dy in (d - abs(dx), -(d - abs(dx))):
+                    pos = Position(cat.position.x + dx, cat.position.y + dy)
+                    if self.summon_tile_valid(cat, pos):
+                        return pos
+        return None
+
     def is_occupied(self, position: Position):
-        return any(cat.position == position for cat in self.party + self.level.enemies)
+        return any(cat.position == position for cat in self.party + self.summons + self.level.enemies)
 
     def get_cat_by_position(self, position: Position):
-        for cat in self.party + self.level.enemies:
+        for cat in self.party + self.summons + self.level.enemies:
             if cat.position == position:
                 return cat
         return None

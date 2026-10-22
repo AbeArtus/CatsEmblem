@@ -314,6 +314,7 @@ def open_unit_menu(self, option_index=0):
             (item, i)
             for i, item in enumerate(selectedCat.items)
             if item.type == 'weapon'
+            and not item.is_tome()
             and item.can_use(selectedCat.classType)
             and weapon_in_range(item)
         ]
@@ -336,6 +337,33 @@ def open_unit_menu(self, option_index=0):
             ]],
             title=[lambda: f"Pick Weapon"],
             leave_action=exit_menu
+        ))
+
+    def summon_tomes():
+        if not selectedCat or selectedCat.exhausted or selectedCat.summon:
+            return []
+        return [(i, item) for i, item in enumerate(selectedCat.items)
+                if item.type == 'weapon' and item.is_tome() and item.can_use(selectedCat.classType)]
+
+    def begin_summon(index):
+        selectedCat.equip_item(index)
+        first = self.first_summon_tile(selectedCat)
+        if first is None:
+            self.add_dialog(Dialog(lines=["No room", "to summon"], instaText=True))
+            return
+        self.menu = None
+        self.update_selector_position(first.x, first.y)
+        self.set_state('summon-select')
+
+    def summon_action():
+        tomes = summon_tomes()
+        if len(tomes) == 1:
+            begin_summon(tomes[0][0])
+            return
+        self.enter_menu(menu=Menu(
+            options=[[Option(label=item.name, action=lambda i=i: begin_summon(i)) for i, item in tomes]],
+            title=[lambda: "Summon"],
+            leave_action=lambda: self.open_unit_menu()
         ))
 
     def seize_action():
@@ -368,7 +396,7 @@ def open_unit_menu(self, option_index=0):
         for enemy in self.level.enemies:
             dx = abs(enemy.position.x - cat.position.x)
             dy = abs(enemy.position.y - cat.position.y)
-            for catWeapon in [item for item in cat.items if item.type == 'weapon' and item.can_use(cat.classType)]:
+            for catWeapon in [item for item in cat.items if item.type == 'weapon' and not item.is_tome() and item.can_use(cat.classType)]:
                 if catWeapon and dx + dy in catWeapon.get_range():
                     return True
         return False
@@ -443,6 +471,16 @@ def open_unit_menu(self, option_index=0):
                 exit_menu()
                 break
 
+    def confirm_quit():
+        self.enter_menu(menu=Menu(
+            options=[[
+                Option(label="Lose progress", action=self.quit_to_title),
+                Option(label="Cancel", action=lambda: self.open_unit_menu())
+            ]],
+            title=[lambda: "Quit?"],
+            leave_action=lambda: self.open_unit_menu()
+        ))
+
     menu_title = f"{selectedCat.name} hp:{selectedCat.hp}" if selectedCat else "Unit Menu"
     self.enter_menu(menu = Menu(
         options=[[
@@ -454,6 +492,10 @@ def open_unit_menu(self, option_index=0):
                 label= "Fight",
                 action= fight_action,
                 condition= can_attack
+            ), Option(
+                label= "Summon",
+                action= summon_action,
+                condition= lambda: len(summon_tomes()) > 0
             ), Option(
                 label="Press",
                 action= press_action,
@@ -489,6 +531,10 @@ def open_unit_menu(self, option_index=0):
             ), Option(
                 label= "End Turn",
                 action= self.end_turn,
+                condition= lambda: True
+            ), Option(
+                label= "Quit",
+                action= confirm_quit,
                 condition= lambda: True
             )
         ]],

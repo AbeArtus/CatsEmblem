@@ -23,6 +23,9 @@ class Item:
         self.weaponType = weaponType
         self.durability = durability if durability is not None else 0
 
+    def is_tome(self):
+        return self.name == "NecTome" or self.name == "BulTome"
+
     def can_use(self, classType: str):
         return classType in self.allowedClasses
 
@@ -84,6 +87,8 @@ def _build_item(item_name: str):
         return Item(name="NecTome", item_type="weapon", attack=5, accuracy=90, range=12, crit=5, allowedClasses=['wizard'], weaponType='earth', durability=5)
     if item_name == "BulTome":
         return Item(name="BulTome", item_type="weapon", attack=4, accuracy=85, range=3, crit=4, allowedClasses=['wizard'], weaponType='water', durability=10)
+    if item_name == "OrbBlast":
+        return Item(name="OrbBlast", item_type="weapon", attack=10, accuracy=100, range=5, crit=0, allowedClasses=['pupil'], weaponType='water', durability=99)
     if item_name == "MultiShot":
         return Item(name="MultiShot", item_type="weapon", attack=2, accuracy=80, range=12, crit=3, allowedClasses=['sniper'], weaponType='repeater', durability=10)
     if item_name == "Launcher":
@@ -116,7 +121,7 @@ _ITEM_NAMES = frozenset((
     "Stick", "Slngsht", "LghtngTm", "WaterTm", "EarthTm",
     "LongBow", "Bow", "Repeater", "Sword", "Spear", "Mace",
     "MagPowder", "RabFoot", "Armor", "PowerRing", "NewBal",
-    "NecTome", "BulTome", "MultiShot", "Launcher", "Axe", "VoidSwd",
+    "NecTome", "BulTome", "OrbBlast", "MultiShot", "Launcher", "Axe", "VoidSwd",
     "Tuna", "MystPot", "MstMeal", "MstQll"
 ))
 
@@ -127,7 +132,7 @@ class LazyItemDict:
     def __getitem__(self, key):
         if key not in self:
             raise KeyError(key)
-        return _build_item(key).clone()
+        return _build_item(key)
 
     def get(self, key, default=None):
         if key in self:

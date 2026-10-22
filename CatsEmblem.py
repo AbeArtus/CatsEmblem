@@ -16,7 +16,7 @@ def render_loading_screen(message: str):
 thumby.display.setFPS(20)
 render_loading_screen("Loading")
 
-from Shared import Cat, Position, build_dialogs, cat_frame_sprite, cat_head, Item, Dialog, Menu, AttackLog, Option, button_sprite, classAdvantages, enemy_frame_sprite, checkClearMem
+from Shared import Cat, Position, build_dialogs, cat_frame_sprite, cat_head, Item, Dialog, Menu, AttackLog, Option, button_sprite, classAdvantages, enemy_frame_sprite, checkClearMem, generate_enemy, tile_sprite_cache
 checkClearMem("Shared Imported")
 render_loading_screen("Loading.")
 from MapData import get_tile_data, canWalkOn, tileEvation, TILE_BLOCKADE
@@ -157,27 +157,25 @@ def render_dialog(dialog):
 def get_render_tile_sprite(tile_type: int, map_x: int, map_y: int, screen_x: int, screen_y: int):
 	if tile_type == 4 or tile_type == 35:
 		return None
-	sprite_data, xFlip, yFlip, size_x, size_y = get_tile_data(tile_type)
-
-	if sprite_data is None:
-		return None
-
 	if tile_type == 0:
 		key = (tile_type, (map_y & 1) == 0)
 	elif tile_type == 1:
 		xEven = (map_x & 1) == 0
 		yEven = (map_y & 1) == 0
-		shouldFlip = (xEven and not yEven) or (not xEven and yEven)
-		key = (tile_type, shouldFlip)
+		key = (tile_type, xEven != yEven)
 	else:
-		key = (tile_type, xFlip, yFlip)
+		key = tile_type
 
-	if tile_type == 0:
-		sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
-	elif tile_type == 1:
-		sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
-	else:
-		sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, xFlip, yFlip)
+	sprite = tile_sprite_cache.get(key)
+	if sprite is None:
+		sprite_data, xFlip, yFlip, size_x, size_y = get_tile_data(tile_type)
+		if sprite_data is None:
+			return None
+		if tile_type == 0 or tile_type == 1:
+			sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, key[1])
+		else:
+			sprite = thumby.Sprite(size_x, size_y, sprite_data, 0, 0, -1, xFlip, yFlip)
+		tile_sprite_cache[key] = sprite
 
 	sprite.x = screen_x * 8
 	sprite.y = screen_y * 8
@@ -205,6 +203,13 @@ def addDialog(dialog: list[str], cat: Cat = None):
 	)
 	gameState.add_dialog(dialog)
 
+def strike(attacker: Cat, defender: Cat, is_counter: bool = False) -> int:
+	weapon = attacker.get_weapon()
+	exp = record_attack(attacker, defender, is_counter)
+	if weapon is not None and weapon.name == 'MultiShot' and defender.hp > 0:
+		exp += record_attack(attacker, defender, is_counter)
+	return exp
+
 def battle(attacker: Cat, defender: Cat):
 	global gameState
 
@@ -213,7 +218,7 @@ def battle(attacker: Cat, defender: Cat):
 
 	expMultiplier = defender.level / attacker.level if defender.enemy else attacker.level / defender.level
 
-	attackerExp += record_attack(attacker, defender)
+	attackerExp += strike(attacker, defender)
 	if defender.hp <= 0:
 		attacker.add_exp(int(defender.stats.max_hp * expMultiplier), addDialog)
 		return
@@ -223,20 +228,20 @@ def battle(attacker: Cat, defender: Cat):
 	dx = abs(attacker.position.x - defender.position.x)
 	dy = abs(attacker.position.y - defender.position.y)
 	if dx + dy in defender_ranges:
-		defenderExp += record_attack(defender, attacker)
+		defenderExp += strike(defender, attacker)
 		if attacker.hp <= 0:
 			defender.add_exp(int(attacker.stats.max_hp * expMultiplier), addDialog)
 			return
 
 	if attacker.stats.speed > defender.stats.speed * int(1.5):
-		attackerExp += record_attack(attacker, defender, is_counter=True)
+		attackerExp += strike(attacker, defender, is_counter=True)
 	if defender.hp <= 0:
 		attacker.add_exp(int(defender.stats.max_hp * expMultiplier), addDialog)
 		return
 
 	if dx + dy in defender_ranges:
 		if defender.stats.speed > attacker.stats.speed * int(1.5):
-			attackerExp += record_attack(defender, attacker, is_counter=True)
+			attackerExp += strike(defender, attacker, is_counter=True)
 		if attacker.hp <= 0:
 			defender.add_exp(int(attacker.stats.max_hp * expMultiplier), addDialog)
 			return
@@ -258,9 +263,9 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
 
 	defenderDodge = defender.stats.defense + defender.stats.speed + defender.stats.luck
 	attackerAttackPower = attacker.stats.speed + attacker.stats.luck + attacker.stats.attack
-	attackDodge = randInt < (defenderDodge - attackerAttackPower) * 3
+	attackDodge = randInt < (defenderDodge - attackerAttackPower) * 3 and attacker.summon != 'orb'
 	randInt = random.randint(1, 100)
-	attackHit = randInt <= attackerWeapon.accuracy - tileEvationBonus
+	attackHit = randInt <= attackerWeapon.accuracy - tileEvationBonus or attacker.summon == 'orb'
 
 	damage = calculate_damage(attacker, defender) if attackHit and not attackDodge else 0
 	old_hp = defender.hp
@@ -305,6 +310,8 @@ def record_attack(attacker: Cat, defender: Cat, is_counter: bool = False) -> int
 				))
 		if defender in gameState.party:
 			gameState.party.remove(defender)
+		if defender in gameState.summons:
+			gameState.summons.remove(defender)
 		log = defender.deathDialog
 		if log is not None:
 			dialogs = build_dialogs(log, right=[defender])
@@ -320,7 +327,7 @@ def calculate_damage(attacker: Cat, defender: Cat):
 	attackerWeapon: Item = attacker.get_weapon()
 	defenderWeapon: Item = defender.get_weapon()
 
-	party = gameState.party if not attacker.enemy else gameState.level.enemies
+	party = gameState.party + gameState.summons if not attacker.enemy else gameState.level.enemies
 	assist = 0
 	for member in party :
 		if abs(member.position.x - attacker.position.x) + abs(member.position.y - attacker.position.y) <= 1:
@@ -328,6 +335,8 @@ def calculate_damage(attacker: Cat, defender: Cat):
 
 	if attackerWeapon is None:
 		return 0
+	if attacker.summon == 'orb':
+		return 10
 
 	hasWeaponAdvantage = attackerWeapon and defenderWeapon and weaponAdvantages.get(attackerWeapon.type) == defenderWeapon.type or attackerWeapon is not None and defenderWeapon is None
 	hasClassAdvantage = classAdvantages.get(attacker.classType) == defender.classType
@@ -336,7 +345,8 @@ def calculate_damage(attacker: Cat, defender: Cat):
 	attackerLowHP = attacker.hp <= attacker.stats.max_hp // 4
 	defenderLowHP = defender.hp <= defender.stats.max_hp // 4
 
-	attacker.weaponExp.increase_exp(attackerWeapon.weaponType, 1)
+	if not attacker.enemy and not attacker.summon:
+		attacker.weaponExp.increase_exp(attackerWeapon.weaponType, 1)
 
 	base_damage = attacker.stats.attack + attacker.get_weapon().attack - defender.stats.defense
 	bonus_damage = 0 + attacker.weaponExp.get_weapon_attack_bonus(attackerWeapon.type)
@@ -397,7 +407,7 @@ def handle_movement():
 				isWalkable = gameState.level.map[new_y][new_x] in canWalkOn
 			else:
 				isWalkable = False
-			for unit in gameState.level.enemies:
+			for unit in gameState.level.enemies + gameState.summons:
 				if isCatSelected and unit.id == gameState.selectedCatId:
 					continue
 				elif unit.position.x == new_x and unit.position.y == new_y:
@@ -474,7 +484,7 @@ def render_map(level):
 					thumby.display.drawSprite(overlaySprite)
 					break
 
-	for unit in gameState.party + gameState.level.enemies:
+	for unit in gameState.party + gameState.summons + gameState.level.enemies:
 		if (gameState.level.viewport.x <= unit.position.x < gameState.level.viewport.x + SCREEN_TILES_X and 
 			gameState.level.viewport.y <= unit.position.y < gameState.level.viewport.y + SCREEN_TILES_Y):
 			isSelected = gameState.selectedCatId == unit.id
@@ -513,7 +523,7 @@ def render_map(level):
 def animate_cats():
 	global gameState
 	seen = []
-	for c in gameState.party + gameState.level.enemies:
+	for c in gameState.party + gameState.summons + gameState.level.enemies:
 		spr = c.sprite
 		if spr not in seen:
 			seen.append(spr)
@@ -529,10 +539,14 @@ def get_attack_tile(cat: Cat):
 	weapon_ranges = weapon.get_range()
 	enemy_range = 0 if (cat.aiType == "stand" or cat.moved) else cat.stats.range
 	domain = gameState.find_valid_positions(cat, enemy_range)
+	if cat.summon:
+		domain = [pos for pos in domain if (pos[0] == cat.position.x and pos[1] == cat.position.y) or not gameState.is_occupied(Position(pos[0], pos[1]))]
 
 	potential_targets = []
+	isSummon = cat.summon is not None
+	targets = gameState.level.enemies if isSummon else gameState.party + gameState.summons
 
-	for p in gameState.party:
+	for p in targets:
 		for pos in domain:
 			if abs(pos[0] - p.position.x) + abs(pos[1] - p.position.y) in weapon_ranges:
 				diff = cat.level - p.level
@@ -543,6 +557,16 @@ def get_attack_tile(cat: Cat):
 					diff += 1
 				potential_targets.append((Position(pos[0], pos[1]), p, diff))
 				break
+
+	if not potential_targets and isSummon:
+		if cat.summon == 'skeleton' and cat.summoner is not None and not cat.moved:
+			sp = cat.summoner.position
+			if abs(sp.x - cat.position.x) + abs(sp.y - cat.position.y) > 2:
+				free = [pos for pos in domain if not gameState.is_occupied(Position(pos[0], pos[1]))]
+				closest = min(free, key=lambda pos: abs(pos[0] - sp.x) + abs(pos[1] - sp.y), default=None)
+				if closest and (abs(closest[0] - sp.x) + abs(closest[1] - sp.y)) < abs(cat.position.x - sp.x) + abs(cat.position.y - sp.y):
+					return Position(closest[0], closest[1]), None
+		return None, None
 
 	if not potential_targets:
 		for house in gameState.level.houses:
@@ -590,7 +614,7 @@ while True:
 		frame += 1
 
 		partyFullyExhausted = all(p.exhausted for p in gameState.party) if gameState.party else None
-		if (gameState.state == 'map' or gameState.state == 'enemy-turn' or gameState.state == 'enemy-select')\
+		if (gameState.state in ('map', 'enemy-turn', 'enemy-select', 'summon-select', 'summon-turn'))\
 		and not len(gameState.dialog) > 0 and not len(gameState.combat_log) > 0:
 			if currentFont == "5x7":
 				currentFont = "3x5"
@@ -712,7 +736,8 @@ while True:
 				title_menu = Menu(
 					options=[[
 						Option(label="New Game", action=new_game_action),
-						Option(label="Load Game", action=load_game_action, condition=lambda: gameState.has_saved_game())
+						Option(label="Load Game", action=load_game_action, condition=lambda: gameState.has_saved_game()),
+						Option(label="Exit", action=lambda: __import__('thumbyHardware').reset())
 					]],
 					title=[lambda: "Main Menu"],
 					leave_action=lambda: setattr(gameState, 'state', 'title')
@@ -876,7 +901,42 @@ while True:
 					gameState.open_unit_menu()
 					option = 0
 	
-		elif gameState.state == 'enemy-turn':
+		elif gameState.state == 'summon-select':
+			summoner = gameState.get_selected_cat()
+			tome = summoner.items[0]
+			sel = gameState.level.selectorPosition
+			for button, (dx, dy) in (("L", (-1, 0)), ("R", (1, 0)), ("U", (0, -1)), ("D", (0, 1))):
+				if getattr(thumby, f"button{button}").justPressed():
+					thumby.audio.play(note_to_freq("C#6"), 20)
+					for step in range(1, 2 * max(tome.get_range()) + 1):
+						candidate = Position(sel.x + dx * step, sel.y + dy * step)
+						if gameState.summon_tile_valid(summoner, candidate):
+							gameState.update_selector_position(candidate.x, candidate.y)
+							break
+					break
+
+			if thumby.buttonA.justPressed():
+				thumby.audio.play(note_to_freq("F6"), 20)
+				pos = gameState.level.selectorPosition.copy()
+				if tome.name == 'NecTome':
+					unit = generate_enemy(max(1, summoner.level - 5), pos, name='skele', weapon='Sword', summon='skeleton', summoner=summoner)
+				else:
+					unit = generate_enemy(1, pos, ai='stand', name='orb', weapon='OrbBlast', summon='orb', summoner=summoner)
+				gameState.summons.append(unit)
+				if tome.use_weapon():
+					summoner.items.remove(tome)
+					gameState.add_dialog(Dialog(lines=[f"{summoner.name}'s", f"{tome.name}", "broke!"], instaText=True))
+				summoner.set_exhausted(True)
+				gameState.update_selector_position(summoner.position.x, summoner.position.y)
+				gameState.cancel_cat_select()
+				gameState.set_state('map')
+			elif thumby.buttonB.justPressed():
+				thumby.audio.play(note_to_freq("A#6"), 20)
+				gameState.update_selector_position(summoner.position.x, summoner.position.y)
+				gameState.open_unit_menu()
+
+		elif gameState.state == 'enemy-turn' or gameState.state == 'summon-turn':
+			units = gameState.summons if gameState.state == 'summon-turn' else gameState.level.enemies
 			if frame % 10 == 1:
 				if activeEnemy:
 					closest_tile, target = get_attack_tile(activeEnemy)
@@ -889,6 +949,8 @@ while True:
 						thumby.audio.play(note_to_freq("Ab5"), 20)
 						checkClearMem("Before Battle")
 						battle(activeEnemy, target)
+						if activeEnemy.summon == 'orb' and activeEnemy in gameState.summons:
+							gameState.summons.remove(activeEnemy)
 						activeEnemy.set_exhausted(True)
 						activeEnemy = None
 						readyForBattle = False
@@ -899,7 +961,8 @@ while True:
 							activeEnemy.set_position(closest_tile)
 							activeEnemy.set_moved(True)
 							gameState.update_selector_position(closest_tile.x, closest_tile.y)
-							gameState.check_fight_dialogs(target, activeEnemy)
+							if not activeEnemy.summon:
+								gameState.check_fight_dialogs(target, activeEnemy)
 							readyForBattle = True
 					elif closest_tile and not target:
 						houseToDestroy = None
@@ -918,7 +981,7 @@ while True:
 						gameState.update_selector_position(closest_tile.x, closest_tile.y)
 						activeEnemy = None
 				else:
-					for e in gameState.level.enemies:
+					for e in units:
 						if not e.exhausted:
 							(attackPos, defendingUnit)  = get_attack_tile(e)
 							if attackPos != None:
@@ -931,7 +994,7 @@ while True:
 								activeEnemy = None
 								e.set_exhausted(True)
 
-					if all(e.exhausted for e in gameState.level.enemies):
+					if all(e.exhausted for e in units):
 						thumby.audio.play(note_to_freq("F6"), 100)
 						gameState.end_turn()
 
@@ -942,6 +1005,8 @@ while True:
 				gameState.set_state('title')
 				gameState.cancel_cat_select()
 				thumby.audio.play(note_to_freq("F#6"), 100)
+				import thumbyHardware
+				thumbyHardware.reset()
 
 		elif gameState.state == 'gameOver':
 			thumby.display.fill(thumby.display.WHITE)
@@ -950,15 +1015,20 @@ while True:
 				gameState.set_state('title')
 				gameState.cancel_cat_select()
 				thumby.audio.play(note_to_freq("F#5"), 100)
+				import thumbyHardware
+				thumbyHardware.reset()
 	
 		thumby.display.update()
 	except Exception as e:
 		import sys, gc
 		sys.print_exception(e)
 		thumby.display.fill(thumby.display.WHITE)
-		thumby.display.drawText("OOPS Error", 2, 2, thumby.display.BLACK)
+		thumby.display.drawText("oops Error", 2, 2, thumby.display.BLACK)
 		thumby.display.drawText(type(e).__name__, 2, 12, thumby.display.BLACK)
 		thumby.display.drawText(str(e)[:20], 2, 22, thumby.display.BLACK)
 		thumby.display.update()
 		while True:
+			if thumby.buttonA.justPressed() or thumby.buttonB.justPressed():
+				import thumbyHardware
+				thumbyHardware.reset()
 			pass

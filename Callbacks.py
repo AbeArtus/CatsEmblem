@@ -5,6 +5,9 @@ def set_game_state(gs):
 	_game_state = gs
 
 def add_to_party(cat):
+	from Shared import WeaponExp
+	w = cat.weaponExp
+	cat.weaponExp = WeaponExp(w.sword, w.repeater, w.longbow, w.bow, w.lightning, w.water, w.earth, w.mace, w.spear)
 	_game_state.party.append(cat)
 
 def update_bank(amount):

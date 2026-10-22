@@ -177,18 +177,25 @@ class Menu:
         offset = max(0, self.option_index - max_visible + 1)
         return valid_options[offset:offset + max_visible], offset
 
+_growth = None
+
+def _default_growth():
+    global _growth
+    if _growth is None:
+        _growth = GrowthRates()
+    return _growth
+
 class Cat:
     _id_counter = 0
     __slots__ = (
-        'id', '_sprite', '_sprite_factory', 'position', 'selected', 'exhausted',
+        'id', 'position', 'selected', 'exhausted',
         'name', 'stats', 'growthRates', 'enemy', 'hp', 'exp', 'moved', 'level',
         'next_level_exp', 'aiType', 'aiPath', 'items', 'max_items', 'classType',
-        'weaponExp', '_class_sprite', '_class_sprite_key', 'deathDialog'
+        'weaponExp', 'deathDialog', 'summon', 'summoner'
     )
 
     def __init__(
         self,
-        sprite,
         position,
         name,
         selected=False,
@@ -204,22 +211,20 @@ class Cat:
         classType='pupil',
         weaponExp=None,
         growthRates=None,
-        deathDialog=None
+        deathDialog=None,
+        summon=None,
+        summoner=None
     ):
+        self.summon = summon
+        self.summoner = summoner
         self.id = f"cat_{Cat._id_counter}"
         Cat._id_counter += 1
-        self._sprite = None
-        self._sprite_factory = None
-        if callable(sprite):
-            self._sprite_factory = sprite
-        else:
-            self._sprite = sprite
         self.position = position
         self.selected = selected
         self.exhausted = exhausted
         self.name = name
         self.stats = stats if stats is not None else Stats()
-        self.growthRates = growthRates if growthRates is not None else GrowthRates()
+        self.growthRates = growthRates if growthRates is not None else _default_growth()
         self.enemy = enemy
         self.hp = self.stats.max_hp
         self.exp = exp
@@ -232,20 +237,15 @@ class Cat:
         self.max_items = 4
         self.classType = classType
         self.weaponExp = weaponExp if weaponExp else WeaponExp()
-        self._class_sprite = None
-        self._class_sprite_key = None
         self.deathDialog = deathDialog
 
     @property
     def sprite(self):
-        if self._sprite is None and self._sprite_factory is not None:
-            self._sprite = self._sprite_factory()
-        return self._sprite
-
-    @sprite.setter
-    def sprite(self, value):
-        self._sprite = value
-        self._sprite_factory = None
+        if self.summon == 'skeleton':
+            return skeleton_sprite()
+        if self.summon == 'orb':
+            return orb_sprite()
+        return enemy_sprite() if self.enemy else cat_sprite()
 
     def save_state(self, saveData):
         saveData.delItem(f"{self.name}_stats")
@@ -290,19 +290,22 @@ class Cat:
         self.set_selected(False)
 
     def getClassSprite(self, x=0, y=0):
+        if self.summon:
+            return None
         sprite_key = (self.enemy, self.classType)
         sprite_data = get_class_overlay_data().get(sprite_key)
         if sprite_data is None:
             return None
 
-        if self._class_sprite is None or self._class_sprite_key != sprite_key:
+        sprite = _class_sprite_cache.get(sprite_key)
+        if sprite is None:
             from thumbyGrayscale import Sprite
-            self._class_sprite = Sprite(8, 8, sprite_data, x, y, key=1)
-            self._class_sprite_key = sprite_key
+            sprite = Sprite(8, 8, sprite_data, x, y, key=1)
+            _class_sprite_cache[sprite_key] = sprite
         else:
-            self._class_sprite.x = x
-            self._class_sprite.y = y
-        return self._class_sprite
+            sprite.x = x
+            sprite.y = y
+        return sprite
 
     def use_item(self, item_index):
         if item_index < 0 or item_index >= len(self.items):
@@ -355,7 +358,7 @@ class Cat:
         self.sprite.setFrame(nextFrame)
 
     def add_exp(self, amount, addDialog=None):
-        if amount <= 0:
+        if amount <= 0 or self.summon:
             return
         levels_gained = ((self.exp % 20) + amount) // 20
         self.exp += amount
@@ -371,7 +374,7 @@ class Cat:
     def get_weapon(self):
         for item in self.items:
             if item.type == 'weapon' and item.can_use(self.classType):
-                return item
+                return None if item.is_tome() else item
         return None
 
     def level_up(self, addDialog=None):
@@ -405,7 +408,6 @@ class Cat:
 
     def promote(self, new_class: str):
         self.classType = new_class
-        self._class_sprite = None
         self.exp = 0
         self.next_level_exp = 12
         if new_class == 'warrior':
@@ -646,7 +648,7 @@ class Conversation:
 class Level:
     __slots__ = (
         'map', 'enemies', 'viewport', 'selectorPosition', 'number', 'seizePosition',
-        'startingPositions', 'shops', 'houses', 'conversations', 'buttons', 'blockades', 'overlayObjects'
+        'startingPositions', 'shops', 'houses', 'conversations', 'buttons', 'blockades', 'overlayObjects', 'fightDialogs', 'intro'
     )
 
     def __init__(
@@ -678,6 +680,7 @@ class Level:
         self.blockades = blockades if blockades is not None else []
         self.overlayObjects = overlayObjects if overlayObjects is not None else []
         self.fightDialogs = fightDialogs if fightDialogs is not None else []
+        self.intro = []
 
     def find_valid_positions(self, cat: Cat, range: int, party: list[Cat]):
         checkClearMem("Finding Valid Positions")
@@ -745,6 +748,11 @@ _enemy_sprite = None
 _button_sprite = None
 _cat_head_sprite = None
 _cat_frame_cache = {}
+_class_sprite_cache = {}
+tile_sprite_cache = {}
+
+def clear_tile_cache():
+    tile_sprite_cache.clear()
 _enemy_frame_cache = {}
 
 def cat_sprite():
@@ -762,6 +770,25 @@ def enemy_sprite():
         from thumbyGrayscale import Sprite
         _enemy_sprite = Sprite(8, 8, enemy_sprite_sheet(), 32, 16, key=1)
     return _enemy_sprite
+
+_skeleton_sprite = None
+_orb_sprite = None
+
+def skeleton_sprite():
+    global _skeleton_sprite
+    if _skeleton_sprite is None:
+        from MapData import cat_skeleton_sprite_sheet
+        from thumbyGrayscale import Sprite
+        _skeleton_sprite = Sprite(8, 8, cat_skeleton_sprite_sheet(), 32, 16, key=1)
+    return _skeleton_sprite
+
+def orb_sprite():
+    global _orb_sprite
+    if _orb_sprite is None:
+        from MapData import light_orb
+        from thumbyGrayscale import Sprite
+        _orb_sprite = Sprite(8, 8, light_orb(), 32, 16, key=1)
+    return _orb_sprite
 
 def button_sprite(x=0, y=0):
     global _button_sprite
@@ -828,7 +855,6 @@ def get_party_death_dialog(name):
 
 def _build_cat_unit():
     return Cat(
-        sprite=cat_sprite,
         position=Position(2, 4),
         name='cat',
         stats=Stats(max_hp=10, defense=3, luck=3, range=4),
@@ -839,7 +865,6 @@ def _build_cat_unit():
 
 def _build_tac_unit():
     return Cat(
-        sprite=cat_sprite,
         position=Position(5, 13),
         name='tac',
         stats=Stats(attack=4, speed=4, luck=4, range=4),
@@ -850,7 +875,6 @@ def _build_tac_unit():
 
 def _build_mew_unit():
     return Cat(
-        sprite=cat_sprite,
         name='mew',
         position=Position(3, 1),
         stats=Stats(attack=4, max_hp=10, range=4, defense=3),
@@ -862,7 +886,6 @@ def _build_mew_unit():
 
 def _build_bub_unit():
     return Cat(
-        sprite=cat_sprite,
         name='bub',
         position=Position(8, 14),
         stats=Stats(attack=4, defense=3, luck=4, range=4),
@@ -876,7 +899,6 @@ def _build_bub_unit():
 
 def _build_bao_unit():
     return Cat(
-        sprite=cat_sprite,
         name='bao',
         position=Position(8,14),
         stats=Stats(attack=5, defense=4, luck=4, range=4),
@@ -891,7 +913,6 @@ def _build_bao_unit():
 
 def _build_npc_unit():
     return Cat(
-        sprite=cat_sprite,
         name='npc',
         position=Position(0, 0),
         enemy=False,
@@ -926,50 +947,53 @@ class PathPoint:
     def mark_visited(self):
         self.visited = True
 
-def generate_enemy(level, position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil', path=None, deathDialog=None):
+_enemy_weapon_exp = None
+
+def _shared_weapon_exp():
+    global _enemy_weapon_exp
+    if _enemy_weapon_exp is None:
+        _enemy_weapon_exp = WeaponExp()
+    return _enemy_weapon_exp
+
+def generate_enemy(level, position, ai='searchAndDestroy', name='pig', weapon="Stick", classType='pupil', path=None, deathDialog=None, summon=None, summoner=None):
     bigBoiPath = []
     if path is not None:
         for p in path:
             bigBoiPath.append(PathPoint(p))
     e = Cat(
-        sprite=enemy_sprite,
         position=position,
         name=name,
         enemy=True,
         aiType=ai,
         items=[itemDict[weapon]],
         classType=classType,
+        weaponExp=_shared_weapon_exp(),
         aiPath=bigBoiPath,
         deathDialog=deathDialog
     )
     e.add_exp((level - 1) * 20, None)
+    if summon:
+        e.enemy = False
+        e.summon = summon
+        e.summoner = summoner
+        if summon == 'orb':
+            e.stats.max_hp = 1
+            e.hp = 1
+        for item in e.items:
+            item.durability = 999
     return e
 
-def fetch_level(level_number):
+def fetch_level(level_number, party=None):
     import sys
-    from Callbacks import CALLBACKS
-    if level_number < 6:
-        checkClearMem("Loading Act One Levels")
-        from ActOne import ActOneLevels, set_game_state_callbacks
-        set_game_state_callbacks(*CALLBACKS)
-        builder = (
-            ActOneLevels._build_level1, ActOneLevels._build_level2, ActOneLevels._build_level3,
-            ActOneLevels._build_level4, ActOneLevels._build_level5
-        )[level_number - 1]
-        level = builder()
-        checkClearMem("Loading Act One Levels")
-        sys.modules.pop('ActOne', None)
-        return level
-    checkClearMem("Loading Act Two Levels")
-    from ActTwo import ActTwoLevels, set_game_state_callbacks
-    set_game_state_callbacks(*CALLBACKS)
-    builder = (
-        ActTwoLevels._build_level6, ActTwoLevels._build_level7, ActTwoLevels._build_level8,
-        ActTwoLevels._build_level9, ActTwoLevels._build_level10
-    )[level_number - 6]
-    level = builder()
-    checkClearMem("Loading Act Two Levels")
-    sys.modules.pop('ActTwo', None)
+    cls = 'ActOneLevels' if level_number < 6 else 'ActTwoLevels'
+    name = 'Lvl%d' % level_number
+    checkClearMem("Loading Level Module")
+    mod = __import__(name)
+    level = getattr(getattr(mod, cls), '_build_level%d' % level_number)()
+    level.intro = list(mod.LevelDialogs().build(party or []).get("intro", ()))
+    del mod
+    sys.modules.pop(name, None)
+    checkClearMem("Level Module Loaded")
     return level
 
 def build_dialogs(specs, left=None, right=None):
@@ -991,7 +1015,10 @@ def build_dialogs(specs, left=None, right=None):
             )
 
 def clear_cache():
-    global _cat_sprite, _enemy_sprite, _button_sprite, _cat_head_sprite
+    global _cat_sprite, _enemy_sprite, _button_sprite, _cat_head_sprite, _skeleton_sprite, _orb_sprite
+    _skeleton_sprite = None
+    _orb_sprite = None
+    _class_sprite_cache.clear()
     _cat_sprite = None
     _enemy_sprite = None
     _button_sprite = None
