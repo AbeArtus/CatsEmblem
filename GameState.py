@@ -263,6 +263,21 @@ class GameState:
             return []
         return self.level.find_valid_positions(cat, range_distance, self.party + self.summons)
 
+    def heal_on_houses(self, units):
+        for unit in units:
+            if unit.hp >= unit.stats.max_hp:
+                continue
+            for house in self.level.houses:
+                if not house.destroyed and house.position == unit.position:
+                    healed = min(5, unit.stats.max_hp - unit.hp)
+                    unit.hp += healed
+                    self.add_dialog(Dialog(
+                        lines=[f"{unit.name} +{healed}hp"],
+                        overlay=True,
+                        timeout=1
+                    ))
+                    break
+
     def end_turn(self):
         self.cancel_cat_select()
         if self.player_turn and self.summons and self.state != 'summon-turn' and len(self.level.enemies) > 0:
@@ -295,6 +310,7 @@ class GameState:
                 timeout=1
             ))
         else:
+            self.heal_on_houses(self.level.enemies)
             for unit in self.level.enemies:
                 unit.set_exhausted(False)
                 unit.set_moved(False)
