@@ -52,11 +52,8 @@ def build_levels(src, cls, dialogs):
     for number, block in blocks:
         compile_module('Lvl' + number, head + 'class %s:\n' % cls + block + '\n' + dialogs[int(number)])
 
-
 dialogs = dialog_blocks()
-build_levels('ActOne.py', 'ActOneLevels', dialogs)
-build_levels('ActTwo.py', 'ActTwoLevels', dialogs)
-
+build_levels('Levels.py', 'ActOneLevels', dialogs)
 
 CORE = ['Shared', 'GameState', 'Menus', 'Items', 'MapData', 'Callbacks']
 for name in CORE:

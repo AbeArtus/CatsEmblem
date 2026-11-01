@@ -96,10 +96,10 @@ class LevelDialogs:
             "intro": build_dialogs(
                 [
                     ["With the|docks secured||Cat heads|to the|south island|now occupied|by the|filth"],
-                    ["I think|Im gonna|be sick|the tides...|ooooh|my stomach", 'cat'],
-                    ["*meow*|(Young lad|is missing|his sea|legs aye?)", 'tac'] if has_tac else None,
-                    ["I will|not let|your weak..|stomach|prevent|our freedom", 'mew'] if has_mew else None,
-                    ["Cat enters|the fenline|temple|once sacred|now occupied|by exel|the filth|elder"],
+                    ["Im gonna|be sick|the tides...", 'cat'],
+                    ["*meow*|(missing sea|legs aye?)", 'tac'] if has_tac else None,
+                    ["Your weak|stomach|better not|prevent|our freedom", 'mew'] if has_mew else None,
+                    ["After rough|waters|at sea|Cat enters|the fenline|temple|once sacred|now occupied|by exel|the filth|elder"],
                     ["exel the|second|last of|the retainers|has bub,|my love|captive|I must|free him", 'bao'] if has_bao else None,
                 ],
                 left=[cat for cat in party[:len(party)//2]],
@@ -115,7 +115,7 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["With one last|of the retainers|remaining|Cat arrives|to mount cat|in search|of muke"],
+                    ["Cat arrives|to mount cat|in search|of muke"],
                     ["Just get|nastier the|further we go", 'cat'],
                     ["*meow*|(My beans...|Soggy)", 'tac'] if has_tac else None,
                     ["This is|an odd|place|Mostly for|high mages.|I'd leave no stone un turned", 'mew'] if has_mew else None,
@@ -131,7 +131,8 @@ class LevelDialogs:
         return {
             "intro": build_dialogs(
                 [
-                    ["Welcome|to Level|Eight!"],
+                    ["With a full party,|Cat sets|out to|explore the|eastern islands"],
+                    ["Well|Since we|have a full|crew I|can finally|explore", 'cat']
                 ],
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
