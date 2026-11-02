@@ -522,7 +522,6 @@ class ActOneLevels:
 		)
 		return level
 
-
 	def _build_level6():
 		from MapData import get_map
 		from Shared import get_bub, Blockade, Button, Position, Conversation, generate_enemy, Shop, ShopItem, Level
@@ -554,7 +553,7 @@ class ActOneLevels:
 				return False
 			diff =  abs(selCat.position.x - bub.position.x) + abs(selCat.position.y - bub.position.y)
 			return abs(diff) <= 1
-		exel = generate_enemy(7, Position(16, 3), name='exel', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'exel']])
+		exel = generate_enemy(7, Position(16, 3), name='exel', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["Even if|its not me|to do it|you shall|join the|filth", 'exel']])
 		level = Level(
 			map=get_map(6),
 			enemies=[
@@ -623,7 +622,7 @@ class ActOneLevels:
 		from MapData import get_map
 		from Shared import get_npc, Position, generate_enemy, Shop, ShopItem, Level, House
 		npc = get_npc()
-		muke = generate_enemy(8, Position(9, 1), name='muke', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'muke']])
+		muke = generate_enemy(8, Position(9, 1), name='muke', weapon='LghtngTm', classType='wizard', ai='stand', deathDialog=[["I never|wanted this|save your|home while|you can|I've been|retaining|my whole|life|Im filled|with regret", 'muke']])
 		level = Level(
 			map=get_map(7),
 			enemies=[
@@ -725,7 +724,7 @@ class ActOneLevels:
 			return False
 
 		npc = get_npc()
-		xl = generate_enemy(9, Position(4, 2), ai='stand', name='xl', weapon='Axe', classType='warrior', deathDialog=[["I guess|this is|the end|of my|journey", 'xl']])
+		xl = generate_enemy(9, Position(4, 2), ai='stand', name='xl', weapon='Axe', classType='warrior', deathDialog=[["Well good|luck!", 'xl']])
 
 		level = Level(
 			map=get_map(8),
@@ -785,7 +784,8 @@ class ActOneLevels:
 			fightDialogs=[
 				['*', 'xl', lambda: build_dialogs(
 					[
-						["Unforunatly|Im not|gonna move|so you'll|have to|defeat me", 'xl']
+						["Unforunatly|I can't|move|so you'll|have to|defeat me", 'xl'],
+						["I was|reallly|hoping I|didn't have|to", get_selected_cat().name] if get_selected_cat() and get_selected_cat().name != 'tac' else ["*MEOW*|(WE! have|to move you!)", 'tac']
 					],
 					left=[xl],
 					right=[get_selected_cat()],
@@ -893,7 +893,8 @@ class ActOneLevels:
 			fightDialogs=[
 				['*', 'zero', lambda: build_dialogs(
 					[
-						["wow", 'zero']
+						["You are|strong to|make it|this far|and take|all of|my retainers|on your way|But this|Journey|will never|end well.|beat me|and face|your nightmare", 'zero'],
+						["I will|save this|land the|cost is|priceless" if get_selected_cat() and get_selected_cat().name != 'tac' else "*meow*|(Well I'm|not gonna|just leave?)", get_selected_cat().name if get_selected_cat() else None]
 					],
 					left=[zero],
 					right=[get_selected_cat()],
@@ -929,7 +930,7 @@ class ActOneLevels:
 			positions=[Position(11, 9), Position(12, 9), Position(13, 9)]
 		)
 
-		mono = generate_enemy(11, Position(12, 4), name='mono', weapon='EarthTm', classType='wizard', ai='stand', deathDialog=[["I guess|this is|the end|of my|journey", 'mono']])
+		mono = generate_enemy(11, Position(12, 4), name='mono', weapon='EarthTm', classType='wizard', ai='stand', deathDialog=[["Congrats|I was hoping|to|Consolidate|the wealth|on this|island|and dip out|but youve|shown that|going above|and beyond|is always|more powerful|*death*", 'mono']])
 		level = Level(
 			map=get_map(10),
 			enemies=[
@@ -952,9 +953,27 @@ class ActOneLevels:
 			blockades=[barrier1, barrier2],
 			overlayObjects=[OverlayObject(position=Position(10, 0), objectName='cat_head', boundPositions=[Position(10, 0), Position(10, 4), Position(14, 4)])],
 			fightDialogs=[
+				['cat', 'mono', lambda: build_dialogs(
+					[
+						["Mayor?", 'cat'],
+						["I know|not who|you speak of|but while|you're here|you will|join us", 'mono'],
+						["How did|this happen|You're the|final boss?", 'cat']
+					],
+					left=[mono],
+					right=[get_selected_cat()],
+				)],
 				['*', 'mono', lambda: build_dialogs(
 					[
-						["wow", 'mono']
+						["You dare|challenge me?", 'mono'],
+						["I will|not back|down", get_selected_cat().name if get_selected_cat() else None]
+					],
+					left=[mono],
+					right=[get_selected_cat()],
+				)],
+				['tac', 'mono', lambda: build_dialogs(
+					[
+						["*meeow*|(I never|liked you)", get_selected_cat().name if get_selected_cat() else None],
+						["Who are|you?", 'mono']
 					],
 					left=[mono],
 					right=[get_selected_cat()],
@@ -962,4 +981,3 @@ class ActOneLevels:
 			]
 		)
 		return level
-

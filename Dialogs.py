@@ -132,7 +132,11 @@ class LevelDialogs:
             "intro": build_dialogs(
                 [
                     ["With a full party,|Cat sets|out to|explore the|eastern islands"],
-                    ["Well|Since we|have a full|crew I|can finally|explore", 'cat']
+                    ["Well|Since we|have a full|crew I|can finally|explore out|here", 'cat'],
+                    ["*meow*|(I love|pirates|if they|ask me|to join...|I will)", 'tac'],
+                    ["Yeah like|youd make|it as|a pirate", 'mew'],
+                    ["Just hope|there are|no bugs", 'bao'],
+                    ["I hope|they have|pina coladas", 'bub']
                 ],
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
@@ -140,10 +144,18 @@ class LevelDialogs:
         }
 
     def _build_level_nine_dialogs(self, party):
+        has_tac = any(cat.name == 'tac' for cat in party)
+        has_mew = any(cat.name == 'mew' for cat in party)
+        has_bao = any(cat.name == 'bao' for cat in party)
+        has_bub = any(cat.name == 'bub' for cat in party)
         return {
             "intro": build_dialogs(
                 [
-                    ["Welcome|to Level|Nine!"],
+                    ["With all|retainers|of mono..|null|||Cat heads|towards|capital pass"],
+                    ["*meow*|(I got|my TC pros|Im ready)", 'tac'] if has_tac else None,
+                    ["I sense|a poweful|blade", 'mew'] if has_mew else None,
+                    ["Just knock|me out and|wake me|up when|were there", 'bao'] if has_bao else None,
+                    ["This should|be the last|push|until the|capital", 'bub'] if has_bub else None
                 ],
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
@@ -151,11 +163,19 @@ class LevelDialogs:
         }
 
     def _build_level_ten_dialogs(self, party):
+        has_tac = any(cat.name == 'tac' for cat in party)
+        has_mew = any(cat.name == 'mew' for cat in party)
+        has_bao = any(cat.name == 'bao' for cat in party)
+        has_bub = any(cat.name == 'bub' for cat in party)
         return {
             "intro": build_dialogs(
                 [
-                    ["Welcome|to Level Ten!"],
-                    ["This is the final level."],
+                    ["With zero|the original|filth gone|Cat approaches|the capital"],
+                    ["Who else|would be|here if|its not|zero?", 'cat'],
+                    ["*meow*|(Yeah| I hate|plot twists)", 'tac'] if has_tac else None,
+                    ["My blade|is hungry", 'mew'] if has_mew else None,
+                    ["I wonder|if this|will bring..|back joanns", 'bao'] if has_bao else None,
+                    ["I doubt|it no one|can bring|her back", 'bub'] if has_bub and has_bao else None
                 ],
                 left=[cat for cat in party[:len(party)//2]],
                 right=[cat for cat in party[len(party)//2:]]
